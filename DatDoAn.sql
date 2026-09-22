@@ -1,361 +1,380 @@
--- =====================================================
--- 1. TẠO DATABASE
--- =====================================================
+DROP DATABASE IF EXISTS DatDoAn;
 
 CREATE DATABASE DatDoAn
-
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
-USE DatDoAn
+USE DatDoAn;
 
 
 -- =====================================================
--- 2. BẢNG NGƯỜI DÙNG
--- Khách hàng / Chủ nhà hàng / Admin
+-- 1. USERS
 -- =====================================================
 
-CREATE TABLE NguoiDung (
-    MaNguoiDung INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    HoTen VARCHAR(100) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    phone_number VARCHAR(15) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
 
-    Email VARCHAR(100) UNIQUE,
-
-    SoDienThoai VARCHAR(15) UNIQUE NOT NULL,
-
-    MatKhau VARCHAR(255) NOT NULL,
-
-    VaiTro ENUM(
-        'KHACH_HANG',
-        'CHU_NHA_HANG',
+    role ENUM(
+        'CUSTOMER',
+        'RESTAURANT_OWNER',
         'ADMIN'
-    ) DEFAULT 'KHACH_HANG',
+    ) DEFAULT 'CUSTOMER',
 
-    TrangThai BOOLEAN DEFAULT TRUE,
+    status BOOLEAN DEFAULT TRUE,
 
-    NgayTao DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL
 );
 
 
 -- =====================================================
--- 3. BẢNG ĐỊA CHỈ
--- Một khách hàng có thể có nhiều địa chỉ
+-- 2. ADDRESSES
 -- =====================================================
 
-CREATE TABLE DiaChi (
-    MaDiaChi INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE addresses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    MaNguoiDung INT NOT NULL,
+    user_id INT NOT NULL,
 
-    TenNguoiNhan VARCHAR(100) NOT NULL,
+    receiver_name VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(15) NOT NULL,
+    address_detail VARCHAR(255) NOT NULL,
+    ward VARCHAR(100),
+    district VARCHAR(100),
+    city VARCHAR(100),
 
-    SoDienThoai VARCHAR(15) NOT NULL,
+    is_default BOOLEAN DEFAULT FALSE,
 
-    DiaChiChiTiet VARCHAR(255) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
 
-    PhuongXa VARCHAR(100),
-
-    QuanHuyen VARCHAR(100),
-
-    TinhThanh VARCHAR(100),
-
-    MacDinh BOOLEAN DEFAULT FALSE,
-
-    FOREIGN KEY (MaNguoiDung)
-        REFERENCES NguoiDung(MaNguoiDung)
+    CONSTRAINT fk_addresses_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
         ON DELETE CASCADE
 );
 
 
 -- =====================================================
--- 4. BẢNG NHÀ HÀNG
--- Đề tài hiện tại chỉ sử dụng 1 nhà hàng
+-- 3. RESTAURANTS
 -- =====================================================
 
-CREATE TABLE CuaHang (
-    MaCuaHang INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE restaurants (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    MaChuNhaHang INT,
+    owner_id INT,
 
-    TenCuaHang VARCHAR(150) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    description TEXT,
+    address VARCHAR(255) NOT NULL,
+    phone_number VARCHAR(15),
+    image VARCHAR(255),
 
-    MoTa TEXT,
+    opening_time TIME,
+    closing_time TIME,
 
-    DiaChi VARCHAR(255) NOT NULL,
+    status ENUM(
+        'OPEN',
+        'CLOSED',
+        'TEMPORARILY_CLOSED'
+    ) DEFAULT 'OPEN',
 
-    SoDienThoai VARCHAR(15),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
 
-    HinhAnh VARCHAR(255),
-
-    GioMoCua TIME,
-
-    GioDongCua TIME,
-
-    TrangThai ENUM(
-        'DANG_MO',
-        'DONG_CUA',
-        'TAM_NGUNG'
-    ) DEFAULT 'DANG_MO',
-
-    NgayTao DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (MaChuNhaHang)
-        REFERENCES NguoiDung(MaNguoiDung)
+    CONSTRAINT fk_restaurants_owner
+        FOREIGN KEY (owner_id)
+        REFERENCES users(id)
         ON DELETE SET NULL
 );
 
 
 -- =====================================================
--- 5. BẢNG DANH MỤC MÓN ĂN
--- Ví dụ:
--- Cơm, Gà, Đồ uống, Tráng miệng...
+-- 4. CATEGORIES
 -- =====================================================
 
-CREATE TABLE DanhMuc (
-    MaDanhMuc INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    MaCuaHang INT NOT NULL,
+    restaurant_id INT NOT NULL,
 
-    TenDanhMuc VARCHAR(100) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(255),
 
-    MoTa VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
 
-    FOREIGN KEY (MaCuaHang)
-        REFERENCES CuaHang(MaCuaHang)
+    CONSTRAINT fk_categories_restaurant
+        FOREIGN KEY (restaurant_id)
+        REFERENCES restaurants(id)
         ON DELETE CASCADE
 );
 
 
 -- =====================================================
--- 6. BẢNG MÓN ĂN
+-- 5. FOODS
 -- =====================================================
 
-CREATE TABLE MonAn (
-    MaMonAn INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE foods (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    MaDanhMuc INT NOT NULL,
+    category_id INT NOT NULL,
 
-    TenMonAn VARCHAR(150) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    description TEXT,
+    price DECIMAL(12,2) NOT NULL,
+    image VARCHAR(255),
 
-    MoTa TEXT,
+    status ENUM(
+        'AVAILABLE',
+        'OUT_OF_STOCK'
+    ) DEFAULT 'AVAILABLE',
 
-    Gia DECIMAL(12,2) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
 
-    HinhAnh VARCHAR(255),
-
-    TrangThai ENUM(
-        'CON_HANG',
-        'HET_HANG'
-    ) DEFAULT 'CON_HANG',
-
-    NgayTao DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    CHECK (Gia >= 0),
-
-    FOREIGN KEY (MaDanhMuc)
-        REFERENCES DanhMuc(MaDanhMuc)
-        ON DELETE CASCADE
-);
-
-
--- =====================================================
--- 7. BẢNG GIỎ HÀNG
--- Mỗi khách hàng chỉ có 1 giỏ hàng
--- =====================================================
-
-CREATE TABLE GioHang (
-    MaGioHang INT AUTO_INCREMENT PRIMARY KEY,
-
-    MaNguoiDung INT NOT NULL UNIQUE,
-
-    NgayTao DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (MaNguoiDung)
-        REFERENCES NguoiDung(MaNguoiDung)
-        ON DELETE CASCADE
-);
-
-
--- =====================================================
--- 8. CHI TIẾT GIỎ HÀNG
--- =====================================================
-
-CREATE TABLE ChiTietGioHang (
-    MaChiTietGioHang INT AUTO_INCREMENT PRIMARY KEY,
-
-    MaGioHang INT NOT NULL,
-
-    MaMonAn INT NOT NULL,
-
-    SoLuong INT NOT NULL DEFAULT 1,
-
-    GhiChu VARCHAR(255),
-
-    CHECK (SoLuong > 0),
-
-    FOREIGN KEY (MaGioHang)
-        REFERENCES GioHang(MaGioHang)
+    CONSTRAINT fk_foods_category
+        FOREIGN KEY (category_id)
+        REFERENCES categories(id)
         ON DELETE CASCADE,
 
-    FOREIGN KEY (MaMonAn)
-        REFERENCES MonAn(MaMonAn)
-        ON DELETE CASCADE,
-
-    UNIQUE (MaGioHang, MaMonAn)
+    CHECK (price >= 0)
 );
 
 
 -- =====================================================
--- 9. BẢNG ĐƠN HÀNG
+-- 6. CARTS
 -- =====================================================
 
-CREATE TABLE DonHang (
-    MaDonHang INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE carts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    MaNguoiDung INT NOT NULL,
+    user_id INT NOT NULL UNIQUE,
 
-    MaCuaHang INT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
 
-    MaDiaChi INT NOT NULL,
+    CONSTRAINT fk_carts_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
 
-    TongTienMon DECIMAL(12,2) NOT NULL DEFAULT 0,
 
-    PhiGiaoHang DECIMAL(12,2) NOT NULL DEFAULT 0,
+-- =====================================================
+-- 7. CART ITEMS
+-- =====================================================
 
-    GiamGia DECIMAL(12,2) NOT NULL DEFAULT 0,
+CREATE TABLE cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    TongThanhToan DECIMAL(12,2) NOT NULL DEFAULT 0,
+    cart_id INT NOT NULL,
+    food_id INT NOT NULL,
 
-    GhiChu VARCHAR(255),
+    quantity INT NOT NULL DEFAULT 1,
+    note VARCHAR(255),
 
-    TrangThai ENUM(
-        'CHO_XAC_NHAN',
-        'DA_XAC_NHAN',
-        'DANG_CHUAN_BI',
-        'DANG_GIAO',
-        'DA_GIAO',
-        'DA_HUY'
-    ) DEFAULT 'CHO_XAC_NHAN',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
 
-    NgayDat DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_cart_items_cart
+        FOREIGN KEY (cart_id)
+        REFERENCES carts(id)
+        ON DELETE CASCADE,
 
-    NgayCapNhat DATETIME
-        DEFAULT CURRENT_TIMESTAMP
+    CONSTRAINT fk_cart_items_food
+        FOREIGN KEY (food_id)
+        REFERENCES foods(id)
+        ON DELETE CASCADE,
+
+    UNIQUE (cart_id, food_id),
+
+    CHECK (quantity > 0)
+);
+
+
+-- =====================================================
+-- 8. ORDERS
+-- =====================================================
+
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    user_id INT NOT NULL,
+    restaurant_id INT NOT NULL,
+    address_id INT NOT NULL,
+
+    food_total DECIMAL(12,2) NOT NULL DEFAULT 0,
+    delivery_fee DECIMAL(12,2) NOT NULL DEFAULT 0,
+    discount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+
+    note VARCHAR(255),
+
+    status ENUM(
+        'PENDING',
+        'CONFIRMED',
+        'PREPARING',
+        'DELIVERING',
+        'DELIVERED',
+        'CANCELLED'
+    ) DEFAULT 'PENDING',
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+
+    CONSTRAINT fk_orders_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id),
+
+    CONSTRAINT fk_orders_restaurant
+        FOREIGN KEY (restaurant_id)
+        REFERENCES restaurants(id),
+
+    CONSTRAINT fk_orders_address
+        FOREIGN KEY (address_id)
+        REFERENCES addresses(id)
+);
+
+
+-- =====================================================
+-- 9. ORDER ITEMS
+-- =====================================================
+
+CREATE TABLE order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    order_id INT NOT NULL,
+    food_id INT NOT NULL,
+
+    food_name VARCHAR(150) NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(12,2) NOT NULL,
+    subtotal DECIMAL(12,2) NOT NULL,
+
+    note VARCHAR(255),
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (MaNguoiDung)
-        REFERENCES NguoiDung(MaNguoiDung),
-
-    FOREIGN KEY (MaCuaHang)
-        REFERENCES CuaHang(MaCuaHang),
-
-    FOREIGN KEY (MaDiaChi)
-        REFERENCES DiaChi(MaDiaChi)
-);
-
-
--- =====================================================
--- 10. CHI TIẾT ĐƠN HÀNG
--- Lưu lại tên + giá tại thời điểm khách đặt
--- =====================================================
-
-CREATE TABLE ChiTietDonHang (
-    MaChiTietDonHang INT AUTO_INCREMENT PRIMARY KEY,
-
-    MaDonHang INT NOT NULL,
-
-    MaMonAn INT NOT NULL,
-
-    TenMonAn VARCHAR(150) NOT NULL,
-
-    SoLuong INT NOT NULL,
-
-    DonGia DECIMAL(12,2) NOT NULL,
-
-    ThanhTien DECIMAL(12,2) NOT NULL,
-
-    GhiChu VARCHAR(255),
-
-    CHECK (SoLuong > 0),
-
-    CHECK (DonGia >= 0),
-
-    CHECK (ThanhTien >= 0),
-
-    FOREIGN KEY (MaDonHang)
-        REFERENCES DonHang(MaDonHang)
+    CONSTRAINT fk_order_items_order
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
         ON DELETE CASCADE,
 
-    FOREIGN KEY (MaMonAn)
-        REFERENCES MonAn(MaMonAn)
+    CONSTRAINT fk_order_items_food
+        FOREIGN KEY (food_id)
+        REFERENCES foods(id),
+
+    CHECK (quantity > 0),
+    CHECK (unit_price >= 0),
+    CHECK (subtotal >= 0)
 );
 
 
 -- =====================================================
--- 11. BẢNG THANH TOÁN
+-- 10. PAYMENTS
 -- =====================================================
 
-CREATE TABLE ThanhToan (
-    MaThanhToan INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    MaDonHang INT NOT NULL,
+    order_id INT NOT NULL,
 
-    PhuongThuc ENUM(
-        'TIEN_MAT',
-        'CHUYEN_KHOAN',
+    payment_method ENUM(
+        'CASH',
+        'BANK_TRANSFER',
         'MOMO',
         'VNPAY'
-    ) DEFAULT 'TIEN_MAT',
+    ) DEFAULT 'CASH',
 
-    SoTien DECIMAL(12,2) NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
 
-    TrangThai ENUM(
-        'CHUA_THANH_TOAN',
-        'DA_THANH_TOAN',
-        'THAT_BAI',
-        'HOAN_TIEN'
-    ) DEFAULT 'CHUA_THANH_TOAN',
+    status ENUM(
+        'UNPAID',
+        'PAID',
+        'FAILED',
+        'REFUNDED'
+    ) DEFAULT 'UNPAID',
 
-    MaGiaoDich VARCHAR(100),
+    transaction_code VARCHAR(100),
+    payment_date DATETIME,
 
-    NgayThanhToan DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (MaDonHang)
-        REFERENCES DonHang(MaDonHang)
-        ON DELETE CASCADE
+    CONSTRAINT fk_payments_order
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON DELETE CASCADE,
+
+    CHECK (amount >= 0)
 );
 
 
 -- =====================================================
--- 12. BẢNG ĐÁNH GIÁ
+-- 11. REVIEWS
 -- =====================================================
 
-CREATE TABLE DanhGia (
-    MaDanhGia INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    MaNguoiDung INT NOT NULL,
+    user_id INT NOT NULL,
+    restaurant_id INT NOT NULL,
+    order_id INT NOT NULL,
 
-    MaCuaHang INT NOT NULL,
+    rating INT NOT NULL,
+    comment TEXT,
 
-    MaDonHang INT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
 
-    SoSao INT NOT NULL,
+    CONSTRAINT fk_reviews_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id),
 
-    NoiDung TEXT,
+    CONSTRAINT fk_reviews_restaurant
+        FOREIGN KEY (restaurant_id)
+        REFERENCES restaurants(id),
 
-    NgayDanhGia DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_reviews_order
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON DELETE CASCADE,
 
-    CHECK (SoSao BETWEEN 1 AND 5),
+    CHECK (rating BETWEEN 1 AND 5),
 
-    FOREIGN KEY (MaNguoiDung)
-        REFERENCES NguoiDung(MaNguoiDung),
-
-    FOREIGN KEY (MaCuaHang)
-        REFERENCES CuaHang(MaCuaHang),
-
-    FOREIGN KEY (MaDonHang)
-        REFERENCES DonHang(MaDonHang)
-        ON DELETE CASCADE
+    UNIQUE (user_id, order_id)
 );
-SHOW DATABASES;
+
+
+-- =====================================================
+-- KIỂM TRA CÁC BẢNG
+-- =====================================================
+
+SHOW TABLES;
