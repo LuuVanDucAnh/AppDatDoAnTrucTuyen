@@ -1,5 +1,15 @@
 import { Router } from 'express'
-import { getAll, getById, create, update, remove } from './orders.controller.js'
+import {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+  checkout,
+  getMyOrders,
+  getOrderDetail,
+  cancelOrder,
+} from './orders.controller.js'
 import { authMiddleware } from '../../middleware/auth.middleware.js'
 
 const router = Router()
@@ -75,6 +85,13 @@ const router = Router()
  *               status:
  *                 type: string
  */
+// ── Customer Order APIs ──────────────────────────────────────────────────────
+router.post('/checkout', authMiddleware, checkout)
+router.get('/my-orders', authMiddleware, getMyOrders)
+router.get('/:id/detail', authMiddleware, getOrderDetail)
+router.patch('/:id/cancel', authMiddleware, cancelOrder)
+
+// ── General CRUD ────────────────────────────────────────────────────────────
 router.get('/', authMiddleware, getAll)
 router.post('/', authMiddleware, create)
 

@@ -14,6 +14,22 @@ export const getAll = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+export const getActive = async (req, res, next) => {
+  try {
+    const pagination = getPagination(req.query)
+    const { total, data } = await service.getActiveRestaurants({ ...pagination, search: req.query.search })
+    const meta = getPaginationMeta(total, pagination.page, pagination.limit)
+    sendSuccess(res, 'Lấy danh sách nhà hàng đang mở cửa thành công', data, meta)
+  } catch (err) { next(err) }
+}
+
+export const getMenu = async (req, res, next) => {
+  try {
+    const data = await service.getRestaurantMenu(req.params.id)
+    sendSuccess(res, 'Lấy thực đơn nhà hàng thành công', data)
+  } catch (err) { next(err) }
+}
+
 export const getById = async (req, res, next) => {
   try {
     const data = await service.getById(req.params.id)

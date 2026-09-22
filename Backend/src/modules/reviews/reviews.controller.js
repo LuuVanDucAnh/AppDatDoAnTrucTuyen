@@ -5,6 +5,35 @@ import { createReviewsSchema, updateReviewsSchema } from './reviews.validation.j
 
 const service = new ReviewsService()
 
+export const getByRestaurant = async (req, res, next) => {
+  try {
+    const { page, limit } = req.query
+    const data = await service.getRestaurantReviews(req.params.restaurant_id, { page, limit })
+    const p = Math.max(1, parseInt(page) || 1)
+    const l = Math.max(1, parseInt(limit) || 10)
+    const meta = getPaginationMeta(data.total, p, l)
+    sendSuccess(res, 'Lấy danh sách đánh giá của quán thành công', data, meta)
+  } catch (err) { next(err) }
+}
+
+export const createCustomerReview = async (req, res, next) => {
+  try {
+    const { restaurant_id, order_id, rating, comment } = req.body
+    const data = await service.createCustomerReview(req.user.id, {
+      restaurant_id,
+      order_id,
+      rating,
+      comment,
+    })
+    sendCreated(res, 'Gửi đánh giá thành công', data)
+  } catch (err) {
+    if (err.status) {
+      return sendError(res, err.message, err.status)
+    }
+    next(err)
+  }
+}
+
 export const getAll = async (req, res, next) => {
   try {
     const pagination = getPagination(req.query)

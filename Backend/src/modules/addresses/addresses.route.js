@@ -1,5 +1,14 @@
 import { Router } from 'express'
-import { getAll, getById, create, update, remove } from './addresses.controller.js'
+import {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+  getMyAddresses,
+  createMyAddress,
+  setDefault,
+} from './addresses.controller.js'
 import { authMiddleware } from '../../middleware/auth.middleware.js'
 
 const router = Router()
@@ -73,6 +82,12 @@ const router = Router()
  *               is_default:
  *                 type: integer
  */
+// ── Customer Address APIs ───────────────────────────────────────────────────
+router.get('/my-addresses', authMiddleware, getMyAddresses)
+router.post('/my-addresses', authMiddleware, createMyAddress)
+router.patch('/:id/set-default', authMiddleware, setDefault)
+
+// ── General CRUD ────────────────────────────────────────────────────────────
 router.get('/', authMiddleware, getAll)
 router.post('/', authMiddleware, create)
 

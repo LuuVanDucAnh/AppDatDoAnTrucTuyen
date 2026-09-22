@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getAll, getById, create, update, remove } from './restaurants.controller.js'
+import { getAll, getById, create, update, remove, getActive, getMenu } from './restaurants.controller.js'
 import { authMiddleware } from '../../middleware/auth.middleware.js'
 
 const router = Router()
@@ -11,72 +11,14 @@ const router = Router()
  *   description: Quản lý restaurants
  */
 
+router.get('/', getAll)
+router.get('/active', getActive)
+router.get('/:id/menu', getMenu)
+router.get('/:id', getById)
 
-/**
- * @swagger
- * /restaurants:
- *   get:
- *     tags: [Restaurants]
- *     summary: Lấy danh sách restaurants
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *       - in: query
- *         name: sort
- *         schema:
- *           type: string
- *       - in: query
- *         name: order
- *         schema:
- *           type: string
- *           enum: [ASC, DESC]
- *     responses:
- *       200:
- *         description: Thành công
- *   post:
- *     tags: [Restaurants]
- *     summary: Tạo restaurants mới
- *     responses:
- *       201:
- *         description: Đã tạo thành công
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               owner_id:
- *                 type: integer
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               address:
- *                 type: string
- *               phone_number:
- *                 type: string
- *               image:
- *                 type: string
- *               opening_time:
- *                 type: string
- *               closing_time:
- *                 type: string
- *               status:
- *                 type: string
- */
-router.get('/', authMiddleware, getAll)
 router.post('/', authMiddleware, create)
+router.put('/:id', authMiddleware, update)
+router.delete('/:id', authMiddleware, remove)
 
 /**
  * @swagger
@@ -143,8 +85,5 @@ router.post('/', authMiddleware, create)
  *         schema:
  *           type: string
  */
-router.get('/:id', authMiddleware, getById)
-router.put('/:id', authMiddleware, update)
-router.delete('/:id', authMiddleware, remove)
 
 export default router

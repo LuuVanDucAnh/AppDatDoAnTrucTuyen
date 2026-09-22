@@ -5,6 +5,34 @@ import { createAddressesSchema, updateAddressesSchema } from './addresses.valida
 
 const service = new AddressesService()
 
+export const getMyAddresses = async (req, res, next) => {
+  try {
+    const data = await service.getMyAddresses(req.user.id)
+    sendSuccess(res, 'Lấy danh sách địa chỉ thành công', data)
+  } catch (err) { next(err) }
+}
+
+export const createMyAddress = async (req, res, next) => {
+  try {
+    const { error, value } = createAddressesSchema.validate(req.body)
+    if (error) return sendError(res, error.details[0].message, 400)
+    const data = await service.createAddress(req.user.id, value)
+    sendCreated(res, 'Thêm địa chỉ mới thành công', data)
+  } catch (err) { next(err) }
+}
+
+export const setDefault = async (req, res, next) => {
+  try {
+    const data = await service.setDefault(req.user.id, req.params.id)
+    sendSuccess(res, 'Đặt địa chỉ mặc định thành công', data)
+  } catch (err) {
+    if (err.status) {
+      return sendError(res, err.message, err.status)
+    }
+    next(err)
+  }
+}
+
 export const getAll = async (req, res, next) => {
   try {
     const pagination = getPagination(req.query)

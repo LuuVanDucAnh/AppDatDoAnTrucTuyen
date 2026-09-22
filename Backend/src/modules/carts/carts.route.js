@@ -1,5 +1,16 @@
 import { Router } from 'express'
-import { getAll, getById, create, update, remove } from './carts.controller.js'
+import {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+  getMyCart,
+  addItem,
+  updateItem,
+  removeItem,
+  clearCart,
+} from './carts.controller.js'
 import { authMiddleware } from '../../middleware/auth.middleware.js'
 
 const router = Router()
@@ -59,6 +70,14 @@ const router = Router()
  *               user_id:
  *                 type: integer
  */
+// ── Customer Cart APIs ───────────────────────────────────────────────────────
+router.get('/my-cart', authMiddleware, getMyCart)
+router.post('/add-item', authMiddleware, addItem)
+router.patch('/items/:id', authMiddleware, updateItem)
+router.delete('/items/:id', authMiddleware, removeItem)
+router.delete('/clear', authMiddleware, clearCart)
+
+// ── General CRUD ────────────────────────────────────────────────────────────
 router.get('/', authMiddleware, getAll)
 router.post('/', authMiddleware, create)
 

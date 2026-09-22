@@ -1,5 +1,13 @@
 import { Router } from 'express'
-import { getAll, getById, create, update, remove } from './reviews.controller.js'
+import {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+  getByRestaurant,
+  createCustomerReview,
+} from './reviews.controller.js'
 import { authMiddleware } from '../../middleware/auth.middleware.js'
 
 const router = Router()
@@ -67,8 +75,14 @@ const router = Router()
  *               comment:
  *                 type: string
  */
+// ── Public Restaurant Reviews ───────────────────────────────────────────────
+router.get('/restaurant/:restaurant_id', getByRestaurant)
+
+// ── Customer Create Review ──────────────────────────────────────────────────
+router.post('/', authMiddleware, createCustomerReview)
+
+// ── General Admin/CRUD ──────────────────────────────────────────────────────
 router.get('/', authMiddleware, getAll)
-router.post('/', authMiddleware, create)
 
 /**
  * @swagger

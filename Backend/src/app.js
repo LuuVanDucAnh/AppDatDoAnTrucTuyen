@@ -6,6 +6,7 @@ import swaggerUi from 'swagger-ui-express'
 import { swaggerSpec } from './config/swagger.js'
 import { errorMiddleware } from './middleware/error.middleware.js'
 import { logger } from './utils/logger.js'
+import './models/index.js'
 import router from './routes/index.js'
 
 const app = express()

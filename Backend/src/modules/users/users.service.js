@@ -52,7 +52,7 @@ export class UsersService {
       err.status = 401
       throw err
     }
-    const payload = { id: user.id, email: user.email }
+    const payload = { id: user.id, email: user.email, role: user.role }
     const accessToken = generateAccessToken(payload)
     const refreshToken = generateRefreshToken(payload)
     const { password: _, ...userWithoutPassword } = user.toJSON()
@@ -64,7 +64,7 @@ export class UsersService {
       const decoded = verifyRefreshToken(refreshToken)
       const user = await repo.findById(decoded.id)
       if (!user) throw new Error('User không tồn tại')
-      const payload = { id: user.id, email: user.email }
+      const payload = { id: user.id, email: user.email, role: user.role }
       return { accessToken: generateAccessToken(payload) }
     } catch {
       const err = new Error('Refresh token không hợp lệ hoặc đã hết hạn')

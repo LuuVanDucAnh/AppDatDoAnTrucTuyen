@@ -5,6 +5,54 @@ import { createOrdersSchema, updateOrdersSchema } from './orders.validation.js'
 
 const service = new OrdersService()
 
+export const checkout = async (req, res, next) => {
+  try {
+    const { address_id, payment_method, note } = req.body
+    const data = await service.checkout(req.user.id, { address_id, payment_method, note })
+    sendCreated(res, 'Đặt hàng thành công', data)
+  } catch (err) {
+    if (err.status) {
+      return sendError(res, err.message, err.status)
+    }
+    next(err)
+  }
+}
+
+export const getMyOrders = async (req, res, next) => {
+  try {
+    const { status, page, limit } = req.query
+    const { total, data } = await service.getMyOrders(req.user.id, { status, page, limit })
+    const p = Math.max(1, parseInt(page) || 1)
+    const l = Math.max(1, parseInt(limit) || 10)
+    const meta = getPaginationMeta(total, p, l)
+    sendSuccess(res, 'Lấy lịch sử đơn hàng thành công', data, meta)
+  } catch (err) { next(err) }
+}
+
+export const getOrderDetail = async (req, res, next) => {
+  try {
+    const data = await service.getOrderDetail(req.user.id, req.params.id)
+    sendSuccess(res, 'Lấy chi tiết đơn hàng thành công', data)
+  } catch (err) {
+    if (err.status) {
+      return sendError(res, err.message, err.status)
+    }
+    next(err)
+  }
+}
+
+export const cancelOrder = async (req, res, next) => {
+  try {
+    const data = await service.cancelOrder(req.user.id, req.params.id)
+    sendSuccess(res, 'Hủy đơn hàng thành công', data)
+  } catch (err) {
+    if (err.status) {
+      return sendError(res, err.message, err.status)
+    }
+    next(err)
+  }
+}
+
 export const getAll = async (req, res, next) => {
   try {
     const pagination = getPagination(req.query)
