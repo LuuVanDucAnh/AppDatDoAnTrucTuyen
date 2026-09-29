@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,28 +12,34 @@ import {
   StatusBar,
   Alert,
   Modal,
-  FlatList,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useApp, Order, Address } from '@/context/AppContext';
+import { useFocusEffect, useRouter } from 'expo-router';
+
+import { Order, useApp } from '@/context/AppContext';
+import { foodApi, restaurantApi, searchApi } from '@/services/api';
+import { DELIVERY_FEE, resolveImageUrl } from '@/services/config';
+import type { ApiFood, ApiRestaurant } from '@/services/types';
 
 const { width, height } = Dimensions.get('window');
 
-// Danh mục chuẩn theo DB & Nghiệp vụ
+// Danh mục lọc phía client: mỗi danh mục là một bộ từ khoá khớp với
+// tên/mô tả nhà hàng & món ăn lấy từ DB (DB chưa có bảng phân loại toàn sàn).
 const CATEGORIES = [
-  { id: 'all', name: 'Tất cả', icon: 'utensils', type: 'fa5' },
-  { id: 'com', name: 'Cơm', icon: 'bowl-rice', type: 'fa5' },
-  { id: 'bun_pho', name: 'Bún/Phở', icon: 'noodles', type: 'mci' },
-  { id: 'tra_sua', name: 'Trà Sữa', icon: 'coffee', type: 'fa5' },
-  { id: 'ga_ran', name: 'Gà rán', icon: 'drumstick-bite', type: 'fa5' },
-  { id: 'pizza', name: 'Pizza', icon: 'pizza-slice', type: 'fa5' },
-  { id: 'an_vat', name: 'Ăn vặt', icon: 'cookie-bite', type: 'fa5' },
-  { id: 'trang_mieng', name: 'Tráng miệng', icon: 'ice-cream', type: 'fa5' },
+  { id: 'all', name: 'Tất cả', icon: 'utensils', type: 'fa5', keywords: [] as string[] },
+  { id: 'com', name: 'Cơm', icon: 'bowl-rice', type: 'fa5', keywords: ['cơm'] },
+  { id: 'bun_pho', name: 'Bún/Phở', icon: 'noodles', type: 'mci', keywords: ['bún', 'phở', 'mì', 'quẩy'] },
+  { id: 'tra_sua', name: 'Trà Sữa', icon: 'coffee', type: 'fa5', keywords: ['trà', 'sữa', 'macchiato', 'trân châu'] },
+  { id: 'ga_ran', name: 'Gà rán', icon: 'drumstick-bite', type: 'fa5', keywords: ['gà', 'burger'] },
+  { id: 'pizza', name: 'Pizza', icon: 'pizza-slice', type: 'fa5', keywords: ['pizza', 'mì ý'] },
+  { id: 'an_vat', name: 'Ăn vặt', icon: 'cookie-bite', type: 'fa5', keywords: ['chả', 'bì', 'khoai', 'quẩy', 'trứng'] },
+  { id: 'trang_mieng', name: 'Tráng miệng', icon: 'ice-cream', type: 'fa5', keywords: ['kem', 'chè', 'bánh', 'tráng miệng'] },
 ];
 
-// Banner ưu đãi
+// Banner ưu đãi (hiển thị giới thiệu — Backend chưa có bảng voucher)
 const BANNERS = [
   {
     id: 'b1',
@@ -64,183 +70,143 @@ const BANNERS = [
   },
 ];
 
-// Món ngon bán chạy
-const BEST_SELLERS = [
-  {
-    id: 1,
-    name: 'Cơm Tấm Sườn Bì Chả',
-    category: 'com',
-    restaurantId: 1,
-    restaurantName: 'Cơm Tấm Ba Ghiền',
-    price: 55000,
-    priceFormatted: '55.000đ',
-    tag: 'Bán chạy',
-    tagColor: '#D97706',
-    image:
-      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
-    isOpen: true,
-  },
-  {
-    id: 2,
-    name: 'Phở Bò Tái Nạm Gầu',
-    category: 'bun_pho',
-    restaurantId: 2,
-    restaurantName: 'Phở Bò Gia Truyền 1986',
-    price: 65000,
-    priceFormatted: '65.000đ',
-    tag: 'Yêu thích',
-    tagColor: '#DC2626',
-    image:
-      'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=600&auto=format&fit=crop&q=80',
-    isOpen: true,
-  },
-  {
-    id: 3,
-    name: 'Trà Sữa KOI Macchiato',
-    category: 'tra_sua',
-    restaurantId: 3,
-    restaurantName: 'Trà Sữa KOI Thé - Pasteur',
-    price: 45000,
-    priceFormatted: '45.000đ',
-    tag: 'Best Boba',
-    tagColor: '#059669',
-    image:
-      'https://images.unsplash.com/photo-1558857563-b37cf5a5b515?w=600&auto=format&fit=crop&q=80',
-    isOpen: true,
-  },
-  {
-    id: 4,
-    name: 'Gà Rán Giòn Cay Giòn Rụm',
-    category: 'ga_ran',
-    restaurantId: 4,
-    restaurantName: 'Gà Rán Popeyes - Nguyễn Trãi',
-    price: 49000,
-    priceFormatted: '49.000đ',
-    tag: 'Hot Deal',
-    tagColor: '#EA580C',
-    image:
-      'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=600&auto=format&fit=crop&q=80',
-    isOpen: true,
-  },
-];
+const VOUCHER_NOT_SUPPORTED =
+  'Backend hiện chưa có bảng voucher: mọi đơn hàng được tính discount = 0 và phí giao hàng cố định 15.000đ.';
 
-// Danh sách quán ăn
-const RESTAURANTS = [
-  {
-    id: 1,
-    name: 'Cơm Tấm Ba Ghiền',
-    category: 'com',
-    rating: '4.8',
-    reviews: '250+',
-    cuisine: 'Cơm tấm, Ẩm thực miền Nam',
-    deliveryTime: '15 - 20 phút',
-    distance: '1.2 km',
-    shippingFee: '15.000đ',
-    promoTag: 'Freeship từ 90k ⚡',
-    promoType: 'blue',
-    isOpen: true,
-    badges: ['MỞ CỬA', 'FS -20k'],
-    image:
-      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 2,
-    name: 'Phở Bò Gia Truyền 1986',
-    category: 'bun_pho',
-    rating: '4.7',
-    reviews: '420+',
-    cuisine: 'Phở bò, Bánh quẩy',
-    deliveryTime: '20 - 30 phút',
-    distance: '1.8 km',
-    shippingFee: '15.000đ',
-    promoTag: 'Tặng quẩy giòn 🥖',
-    promoType: 'orange',
-    isOpen: true,
-    badges: ['MỞ CỬA'],
-    image:
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 3,
-    name: 'Trà Sữa KOI Thé - Pasteur',
-    category: 'tra_sua',
-    rating: '4.7',
-    reviews: '890+',
-    cuisine: 'Trà sữa Đài Loan, Macchiato',
-    deliveryTime: '10 - 20 phút',
-    distance: '0.9 km',
-    shippingFee: '15.000đ',
-    promoTag: 'Giao siêu tốc ⚡',
-    promoType: 'teal',
-    isOpen: true,
-    badges: ['MỞ CỬA', 'Flash Sale'],
-    image:
-      'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 4,
-    name: 'Gà Rán Popeyes - Nguyễn Trãi',
-    category: 'ga_ran',
-    rating: '4.6',
-    reviews: '310+',
-    cuisine: 'Gà rán Cajun, Burger',
-    deliveryTime: '20 - 30 phút',
-    distance: '2.5 km',
-    shippingFee: '15.000đ',
-    promoTag: 'Combo tiết kiệm ⚡',
-    promoType: 'orange',
-    isOpen: true,
-    badges: ['MỞ CỬA'],
-    image:
-      'https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?w=800&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 5,
-    name: 'Pizza Hut - Trần Hưng Đạo',
-    category: 'pizza',
-    rating: '4.5',
-    reviews: '180+',
-    cuisine: 'Pizza viền phô mai, Mì Ý',
-    deliveryTime: '25 - 35 phút',
-    distance: '3.0 km',
-    shippingFee: '18.000đ',
-    promoTag: 'Mua 1 Tặng 1 🍕',
-    promoType: 'blue',
-    isOpen: false, // Quán đóng cửa để test nghiệp vụ
-    badges: ['ĐÓNG CỬA'],
-    image:
-      'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&auto=format&fit=crop&q=80',
-  },
-];
+// ─────────────────────────────────────────────────────────────────────────────
+// VIEW MODEL: chuyển dữ liệu API sang đúng các field mà UI đang dùng
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface RestaurantCard {
+  id: number;
+  name: string;
+  image?: string;
+  rating: string;
+  reviews: number;
+  cuisine: string;
+  openHours: string;
+  district: string;
+  isOpen: boolean;
+  searchText: string;
+}
+
+function shortenAddress(address: string): string {
+  const parts = address.split(',').map((p) => p.trim());
+  const found = parts.find((p) => /^(quận|huyện|q\.|tp\.|thành phố)/i.test(p));
+  return found || parts[parts.length - 1] || address;
+}
+
+function formatHours(open?: string | null, close?: string | null): string {
+  const trim = (t?: string | null) => (t ? t.slice(0, 5) : null);
+  const o = trim(open);
+  const c = trim(close);
+  if (o && c) return `${o} - ${c}`;
+  return 'Cả ngày';
+}
+
+function toRestaurantCard(r: ApiRestaurant): RestaurantCard {
+  return {
+    id: r.id,
+    name: r.name,
+    image: resolveImageUrl(r.image),
+    rating: Number(r.average_rating ?? 0).toFixed(1),
+    reviews: Number(r.total_reviews ?? 0),
+    cuisine: r.description || r.address,
+    openHours: formatHours(r.opening_time, r.closing_time),
+    district: shortenAddress(r.address),
+    isOpen: r.status === 'OPEN',
+    searchText: `${r.name} ${r.description ?? ''} ${r.address}`.toLowerCase(),
+  };
+}
+
+interface FoodCard {
+  id: number;
+  name: string;
+  price: number;
+  image?: string;
+  restaurantId: number;
+  restaurantName: string;
+  isOpen: boolean;
+  sold: number;
+  searchText: string;
+}
+
+function toFoodCard(f: ApiFood): FoodCard {
+  const restaurant = f.category?.restaurant;
+  return {
+    id: f.id,
+    name: f.name,
+    price: Number(f.price) || 0,
+    image: resolveImageUrl(f.image),
+    restaurantId: restaurant?.id ?? f.category?.restaurant_id ?? 0,
+    restaurantName: restaurant?.name ?? '',
+    isOpen: restaurant ? restaurant.status === 'OPEN' : true,
+    sold: f.sold_quantity ?? 0,
+    searchText: `${f.name} ${f.description ?? ''} ${restaurant?.name ?? ''}`.toLowerCase(),
+  };
+}
+
+function matchCategory(searchText: string, categoryId: string): boolean {
+  if (categoryId === 'all') return true;
+  const cat = CATEGORIES.find((c) => c.id === categoryId);
+  if (!cat || cat.keywords.length === 0) return true;
+  return cat.keywords.some((kw) => searchText.includes(kw));
+}
+
+const ORDER_STATUS_LABEL: Record<Order['status'], string> = {
+  PENDING: 'Chờ quán xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  PREPARING: 'Đang chuẩn bị',
+  DELIVERING: 'Đang giao hàng 🛵',
+  DELIVERED: 'Giao thành công ✓',
+  CANCELLED: 'Đã hủy',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
   const {
     user,
+    isAuthenticated,
     addresses,
     defaultAddress,
     setDefaultAddress,
+    addAddress,
     cartRestaurantName,
     cartItems,
     cartCount,
     foodTotal,
     deliveryFee,
     discount,
-    voucherCode,
     totalAmount,
-    addToCart,
     updateQuantity,
-    removeFromCart,
-    clearCart,
-    applyVoucher,
     checkout,
     orders,
+    ordersLoading,
+    refreshOrders,
+    refreshCart,
     cancelOrder,
     submitReview,
   } = useApp();
 
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  // ── Dữ liệu từ Backend ────────────────────────────────────────────────────
+  const [restaurants, setRestaurants] = useState<RestaurantCard[]>([]);
+  const [featuredFoods, setFeaturedFoods] = useState<FoodCard[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Kết quả tìm kiếm từ GET /search
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResult, setSearchResult] = useState<{
+    keyword: string;
+    restaurants: RestaurantCard[];
+    foods: FoodCard[];
+  } | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'notif' | 'account'>('home');
 
   // Modals
@@ -250,56 +216,164 @@ export default function HomeScreen() {
   const [showReviewModal, setShowReviewModal] = useState(false);
 
   // Checkout inputs
-  const [selectedAddress, setSelectedAddress] = useState<Address>(defaultAddress);
+  // Chỉ lưu id địa chỉ đang chọn, object dẫn xuất từ danh sách địa chỉ của API
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'MOMO' | 'VNPAY'>('CASH');
   const [orderNote, setOrderNote] = useState('');
   const [inputVoucher, setInputVoucher] = useState('');
+  const [placingOrder, setPlacingOrder] = useState(false);
+
+  // Form thêm địa chỉ mới (POST /profile/addresses)
+  const [showAddAddressForm, setShowAddAddressForm] = useState(false);
+  const [newAddr, setNewAddr] = useState({
+    receiverName: '',
+    phone: '',
+    addressDetail: '',
+    ward: '',
+    district: '',
+    city: '',
+  });
+  const [savingAddress, setSavingAddress] = useState(false);
 
   // Review inputs
-  const [reviewOrderId, setReviewOrderId] = useState<string>('');
+  const [reviewOrderId, setReviewOrderId] = useState<number | null>(null);
   const [reviewStars, setReviewStars] = useState<number>(5);
   const [reviewComment, setReviewComment] = useState<string>('');
+  const [sendingReview, setSendingReview] = useState(false);
 
-  // Orders tab filter (ACTIVE | COMPLETED | CANCELLED)
   const [orderFilter, setOrderFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELLED'>('ACTIVE');
 
-  // Lọc món và quán theo tìm kiếm & category
-  const filteredBestSellers = useMemo(() => {
-    return BEST_SELLERS.filter((dish) => {
-      const matchCat = selectedCategory === 'all' || dish.category === selectedCategory;
-      const matchSearch =
-        dish.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        dish.restaurantName.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
-    });
-  }, [selectedCategory, searchQuery]);
+  // ── Tải nhà hàng đang mở + món bán chạy ───────────────────────────────────
+  const loadData = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const [activeRes, featured] = await Promise.all([
+        restaurantApi.getActive({ limit: 30 }),
+        foodApi.getFeatured(12),
+      ]);
+      setRestaurants(activeRes.data.map(toRestaurantCard));
+      setFeaturedFoods(featured.map(toFoodCard));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Không tải được dữ liệu từ server');
+    }
+  }, []);
 
-  const filteredRestaurants = useMemo(() => {
-    return RESTAURANTS.filter((res) => {
-      const matchCat = selectedCategory === 'all' || res.category === selectedCategory;
-      const matchSearch =
-        res.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        res.cuisine.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
-    });
-  }, [selectedCategory, searchQuery]);
+  useEffect(() => {
+    (async () => {
+      setLoadingData(true);
+      await loadData();
+      setLoadingData(false);
+    })();
+  }, [loadData]);
 
-  // Lọc đơn hàng theo tab
+  // Quay lại trang chủ thì đồng bộ lại giỏ hàng (có thể vừa đặt hàng xong)
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated) void refreshCart();
+    }, [isAuthenticated, refreshCart])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadData(), isAuthenticated ? refreshCart() : Promise.resolve()]);
+    setRefreshing(false);
+  }, [isAuthenticated, loadData, refreshCart]);
+
+
+
+  // ── Tìm kiếm thật qua GET /search (debounce 400ms) ────────────────────────
+  const keyword = searchQuery.trim();
+
+  useEffect(() => {
+    if (keyword.length < 2) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const result = await searchApi.searchAll(keyword, 20);
+        if (cancelled) return;
+        setSearchResult({
+          keyword,
+          restaurants: result.restaurants.data.map(toRestaurantCard),
+          foods: result.foods.data.map(toFoodCard),
+        });
+      } catch {
+        if (!cancelled) setSearchResult({ keyword, restaurants: [], foods: [] });
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [keyword]);
+
+  const selectedAddress = useMemo(
+    () => addresses.find((a) => a.id === selectedAddressId) ?? defaultAddress,
+    [addresses, defaultAddress, selectedAddressId]
+  );
+
+  const isSearchMode = keyword.length >= 2;
+  // Chỉ dùng kết quả khớp với từ khoá hiện tại (tránh hiện kết quả của lần tìm trước)
+  const activeSearch = searchResult?.keyword === keyword ? searchResult : null;
+
+  const shownFoods = useMemo(() => {
+    const source = isSearchMode ? (activeSearch?.foods ?? []) : featuredFoods;
+    return source.filter((f) => matchCategory(f.searchText, selectedCategory));
+  }, [activeSearch, featuredFoods, isSearchMode, selectedCategory]);
+
+  const shownRestaurants = useMemo(() => {
+    const source = isSearchMode ? (activeSearch?.restaurants ?? []) : restaurants;
+    return source.filter((r) => matchCategory(r.searchText, selectedCategory));
+  }, [activeSearch, isSearchMode, restaurants, selectedCategory]);
+
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       if (orderFilter === 'ACTIVE') {
         return ['PENDING', 'CONFIRMED', 'PREPARING', 'DELIVERING'].includes(o.status);
       }
-      if (orderFilter === 'COMPLETED') {
-        return o.status === 'DELIVERED';
-      }
+      if (orderFilter === 'COMPLETED') return o.status === 'DELIVERED';
       return o.status === 'CANCELLED';
     });
   }, [orders, orderFilter]);
 
-  // Xử lý thanh toán đơn hàng
-  const handleConfirmOrder = () => {
-    const newOrder = checkout(selectedAddress, paymentMethod, orderNote);
+  // ── Hành động ─────────────────────────────────────────────────────────────
+  const openRestaurant = (res: { id: number; name: string; isOpen: boolean }) => {
+    if (!res.isOpen) {
+      Alert.alert('Quán đóng cửa', `"${res.name}" hiện đang đóng cửa.`);
+      return;
+    }
+    router.push({ pathname: '/restaurant', params: { id: String(res.id) } });
+  };
+
+  const openOrdersModal = async () => {
+    if (!isAuthenticated) {
+      Alert.alert('Bạn chưa đăng nhập', 'Vui lòng đăng nhập để xem đơn hàng của bạn.', [
+        { text: 'Để sau', style: 'cancel' },
+        { text: 'Đăng nhập', onPress: () => router.push('/auth') },
+      ]);
+      return;
+    }
+    setActiveTab('orders');
+    setShowOrdersModal(true);
+    await refreshOrders();
+  };
+
+  const handleConfirmOrder = async () => {
+    if (!selectedAddress) {
+      Alert.alert('Chưa có địa chỉ giao hàng', 'Vui lòng thêm địa chỉ giao hàng trước khi đặt.');
+      setShowAddressModal(true);
+      setShowAddAddressForm(true);
+      return;
+    }
+
+    setPlacingOrder(true);
+    const newOrder = await checkout(selectedAddress, paymentMethod, orderNote);
+    setPlacingOrder(false);
+
     if (newOrder) {
       setShowCartModal(false);
       setOrderNote('');
@@ -308,31 +382,41 @@ export default function HomeScreen() {
         `Mã đơn: #${newOrder.id}\nNhà hàng: ${newOrder.restaurantName}\nTổng tiền: ${newOrder.totalAmount.toLocaleString('vi-VN')}đ\n\nQuán đang tiếp nhận đơn hàng của bạn!`,
         [
           { text: 'Đóng', style: 'cancel' },
-          {
-            text: 'Xem đơn hàng',
-            onPress: () => {
-              setActiveTab('orders');
-              setShowOrdersModal(true);
-            },
-          },
+          { text: 'Xem đơn hàng', onPress: () => void openOrdersModal() },
         ]
       );
     }
   };
 
-  // Mở modal đánh giá
-  const handleOpenReview = (orderId: string) => {
+  const handleSaveNewAddress = async () => {
+    if (!newAddr.receiverName.trim() || !newAddr.phone.trim() || !newAddr.addressDetail.trim()) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên người nhận, số điện thoại và địa chỉ.');
+      return;
+    }
+    setSavingAddress(true);
+    const created = await addAddress({ ...newAddr, isDefault: addresses.length === 0 });
+    setSavingAddress(false);
+    if (created) {
+      setSelectedAddressId(created.id);
+      setShowAddAddressForm(false);
+      setNewAddr({ receiverName: '', phone: '', addressDetail: '', ward: '', district: '', city: '' });
+      Alert.alert('Đã thêm địa chỉ', 'Địa chỉ mới đã được lưu vào tài khoản của bạn.');
+    }
+  };
+
+  const handleOpenReview = (orderId: number) => {
     setReviewOrderId(orderId);
     setReviewStars(5);
     setReviewComment('');
     setShowReviewModal(true);
   };
 
-  const handleSendReview = () => {
-    if (reviewOrderId) {
-      submitReview(reviewOrderId, reviewStars, reviewComment);
-      setShowReviewModal(false);
-    }
+  const handleSendReview = async () => {
+    if (reviewOrderId === null) return;
+    setSendingReview(true);
+    const ok = await submitReview(reviewOrderId, reviewStars, reviewComment);
+    setSendingReview(false);
+    if (ok) setShowReviewModal(false);
   };
 
   const renderCategoryIcon = (item: (typeof CATEGORIES)[0], isSelected: boolean) => {
@@ -363,7 +447,8 @@ export default function HomeScreen() {
               <Ionicons name="chevron-down" size={14} color="#6B7280" />
             </View>
             <Text style={styles.locationTitle} numberOfLines={1}>
-              {defaultAddress.detailAddress}
+              {selectedAddress?.detailAddress ??
+                (isAuthenticated ? 'Thêm địa chỉ giao hàng' : 'Đăng nhập để chọn địa chỉ')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -372,10 +457,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.headerIconButton}
             activeOpacity={0.7}
-            onPress={() => {
-              setActiveTab('orders');
-              setShowOrdersModal(true);
-            }}
+            onPress={() => void openOrdersModal()}
           >
             <Ionicons name="bag-handle-outline" size={22} color="#374151" />
             {cartCount > 0 && (
@@ -391,7 +473,13 @@ export default function HomeScreen() {
             onPress={() => router.push('/auth')}
           >
             <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={18} color="#FFFFFF" />
+              {user ? (
+                <Text style={styles.avatarInitial}>
+                  {user.fullName.trim().charAt(0).toUpperCase()}
+                </Text>
+              ) : (
+                <Ionicons name="person" size={18} color="#FFFFFF" />
+              )}
             </View>
           </TouchableOpacity>
         </View>
@@ -401,6 +489,9 @@ export default function HomeScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#EA580C']} tintColor="#EA580C" />
+        }
       >
         {/* THANH TÌM KIẾM & BỘ LỌC */}
         <View style={styles.searchRow}>
@@ -413,7 +504,8 @@ export default function HomeScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
-            {searchQuery.length > 0 && (
+            {searching && <ActivityIndicator size="small" color="#EA580C" />}
+            {searchQuery.length > 0 && !searching && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
                 <Ionicons name="close-circle" size={18} color="#9CA3AF" />
               </TouchableOpacity>
@@ -424,7 +516,10 @@ export default function HomeScreen() {
             style={styles.filterButton}
             activeOpacity={0.8}
             onPress={() =>
-              Alert.alert('Bộ lọc thông minh', 'Lọc món theo: Giá tăng dần, Đánh giá cao nhất, Gần tôi nhất.')
+              Alert.alert(
+                'Bộ lọc',
+                'Hiện có thể lọc theo danh mục bên dưới và tìm kiếm theo tên quán / món ăn (API GET /search).'
+              )
             }
           >
             <Ionicons name="options-outline" size={20} color="#64748B" />
@@ -468,7 +563,7 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={styles.bannerActionBtn}
                   activeOpacity={0.85}
-                  onPress={() => applyVoucher(banner.code)}
+                  onPress={() => Alert.alert('Chưa hỗ trợ mã ưu đãi', VOUCHER_NOT_SUPPORTED)}
                 >
                   <Text style={styles.bannerActionBtnText}>{banner.btnText}</Text>
                 </TouchableOpacity>
@@ -513,206 +608,221 @@ export default function HomeScreen() {
           })}
         </ScrollView>
 
-        {/* SECTION: MÓN NGON BÁN CHẠY HÔM NAY */}
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitleIcon}>👍</Text>
-            <Text style={styles.sectionTitle}>Món ngon bán chạy hôm nay</Text>
+        {/* TRẠNG THÁI TẢI / LỖI */}
+        {loadingData && (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#EA580C" />
+            <Text style={styles.loadingText}>Đang tải dữ liệu từ server...</Text>
           </View>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.seeAllButton}
-            onPress={() => setSelectedCategory('all')}
-          >
-            <Text style={styles.seeAllText}>Xem hết</Text>
-            <Ionicons name="chevron-forward" size={14} color="#EA580C" />
-          </TouchableOpacity>
-        </View>
-
-        {filteredBestSellers.length === 0 ? (
-          <View style={styles.emptySearchBox}>
-            <Text style={styles.emptySearchText}>Không tìm thấy món ăn phù hợp.</Text>
-          </View>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.bestSellersList}
-          >
-            {filteredBestSellers.map((dish) => (
-              <View key={dish.id} style={styles.dishCard}>
-                <View style={styles.dishImageWrapper}>
-                  <Image source={{ uri: dish.image }} style={styles.dishImage} resizeMode="cover" />
-                  <View style={[styles.dishBadge, { backgroundColor: dish.tagColor }]}>
-                    <Text style={styles.dishBadgeText}>{dish.tag}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.dishInfo}>
-                  <Text style={styles.dishTitle} numberOfLines={1}>
-                    {dish.name}
-                  </Text>
-                  <Text style={styles.dishRestaurant} numberOfLines={1}>
-                    {dish.restaurantName}
-                  </Text>
-
-                  <View style={styles.dishPriceRow}>
-                    <Text style={styles.dishPrice}>{dish.priceFormatted}</Text>
-                    <TouchableOpacity
-                      style={styles.addDishButton}
-                      activeOpacity={0.8}
-                      onPress={() =>
-                        addToCart(
-                          {
-                            id: dish.id,
-                            name: dish.name,
-                            price: dish.price,
-                            image: dish.image,
-                          },
-                          {
-                            id: dish.restaurantId,
-                            name: dish.restaurantName,
-                            isOpen: dish.isOpen,
-                          }
-                        )
-                      }
-                    >
-                      <Ionicons name="add" size={18} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
         )}
 
-        {/* SECTION: QUÁN ĂN ĐANG MỞ GẦN BẠN */}
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="storefront" size={20} color="#059669" style={{ marginRight: 6 }} />
-            <Text style={styles.sectionTitle}>Quán ăn gần bạn</Text>
-          </View>
-          <View style={styles.nearPill}>
-            <Text style={styles.nearPillText}>Gần nhất</Text>
-          </View>
-        </View>
-
-        {/* DANH SÁCH QUÁN ĂN */}
-        <View style={styles.restaurantsList}>
-          {filteredRestaurants.map((res) => (
-            <TouchableOpacity
-              key={res.id}
-              style={[styles.restaurantCard, !res.isOpen && { opacity: 0.75 }]}
-              activeOpacity={0.9}
-              onPress={() => {
-                if (!res.isOpen) {
-                  Alert.alert('Quán đóng cửa', `"${res.name}" hiện đang đóng cửa.`);
-                } else {
-                  Alert.alert(
-                    res.name,
-                    `Địa chỉ: 123 Đường Mẫu, Q.5\nGiờ mở cửa: 07:00 - 22:00\nĐánh giá: ${res.rating}★ (${res.reviews} lượt)\nPhí ship cố định: 15.000đ`
-                  );
-                }
-              }}
-            >
-              <View style={styles.restaurantCoverWrapper}>
-                <Image source={{ uri: res.image }} style={styles.restaurantCover} />
-
-                <View style={styles.restaurantTopBadges}>
-                  <View
-                    style={[
-                      styles.statusBadgeOpen,
-                      !res.isOpen && { backgroundColor: 'rgba(100, 116, 139, 0.92)' },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.greenDot,
-                        !res.isOpen && { backgroundColor: '#CBD5E1' },
-                      ]}
-                    />
-                    <Text style={styles.statusBadgeText}>
-                      {res.isOpen ? 'MỞ CỬA' : 'ĐÓNG CỬA'}
-                    </Text>
-                  </View>
-                  {res.badges.includes('FS -20k') && (
-                    <View style={styles.statusBadgePromo}>
-                      <Text style={styles.statusBadgePromoText}>FS -20k</Text>
-                    </View>
-                  )}
-                  {res.badges.includes('Flash Sale') && (
-                    <View style={styles.statusBadgeFlash}>
-                      <Text style={styles.statusBadgeFlashText}>Flash Sale</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.restaurantImageBottomOverlay}>
-                  <View style={styles.overlayItem}>
-                    <Ionicons name="time-outline" size={13} color="#FFFFFF" />
-                    <Text style={styles.overlayText}>{res.deliveryTime}</Text>
-                  </View>
-                  <View style={styles.overlayItem}>
-                    <Ionicons name="location-outline" size={13} color="#FFFFFF" />
-                    <Text style={styles.overlayText}>{res.distance}</Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.restaurantDetails}>
-                <View style={styles.restaurantHeaderRow}>
-                  <Text style={styles.restaurantName} numberOfLines={1}>
-                    {res.name}
-                  </Text>
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={12} color="#D97706" />
-                    <Text style={styles.ratingText}>{res.rating}</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.restaurantCuisine} numberOfLines={1}>
-                  {res.cuisine} • {res.reviews} đánh giá
-                </Text>
-
-                <View style={styles.restaurantDivider} />
-
-                <View style={styles.restaurantFooterRow}>
-                  <View style={styles.shippingRow}>
-                    <Ionicons name="bicycle-outline" size={16} color="#059669" />
-                    <Text style={styles.shippingFeeText}>
-                      Phí ship: <Text style={styles.shippingFeeBold}>{res.shippingFee}</Text>
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.promoTagBadge,
-                      res.promoType === 'blue' && styles.promoTagBadgeBlue,
-                      res.promoType === 'orange' && styles.promoTagBadgeOrange,
-                      res.promoType === 'teal' && styles.promoTagBadgeTeal,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.promoTagText,
-                        res.promoType === 'blue' && styles.promoTagTextBlue,
-                        res.promoType === 'orange' && styles.promoTagTextOrange,
-                        res.promoType === 'teal' && styles.promoTagTextTeal,
-                      ]}
-                    >
-                      {res.promoTag}
-                    </Text>
-                  </View>
-                </View>
-              </View>
+        {!loadingData && loadError && (
+          <View style={styles.errorBox}>
+            <Ionicons name="cloud-offline-outline" size={40} color="#DC2626" />
+            <Text style={styles.errorTitle}>Không tải được dữ liệu</Text>
+            <Text style={styles.errorText}>{loadError}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => void onRefresh()}>
+              <Ionicons name="refresh" size={16} color="#FFFFFF" />
+              <Text style={styles.retryBtnText}>Thử lại</Text>
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
+        )}
+
+        {!loadingData && !loadError && (
+          <>
+            {/* SECTION: MÓN NGON BÁN CHẠY */}
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitleIcon}>👍</Text>
+                <Text style={styles.sectionTitle}>
+                  {isSearchMode ? 'Món ăn tìm được' : 'Món ngon bán chạy hôm nay'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.seeAllButton}
+                onPress={() => setSelectedCategory('all')}
+              >
+                <Text style={styles.seeAllText}>Xem hết</Text>
+                <Ionicons name="chevron-forward" size={14} color="#EA580C" />
+              </TouchableOpacity>
+            </View>
+
+            {shownFoods.length === 0 ? (
+              <View style={styles.emptySearchBox}>
+                <Text style={styles.emptySearchText}>Không tìm thấy món ăn phù hợp.</Text>
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.bestSellersList}
+              >
+                {shownFoods.map((dish) => (
+                  <TouchableOpacity
+                    key={dish.id}
+                    style={styles.dishCard}
+                    activeOpacity={0.9}
+                    onPress={() =>
+                      openRestaurant({
+                        id: dish.restaurantId,
+                        name: dish.restaurantName,
+                        isOpen: dish.isOpen,
+                      })
+                    }
+                  >
+                    <View style={styles.dishImageWrapper}>
+                      <Image source={{ uri: dish.image }} style={styles.dishImage} resizeMode="cover" />
+                      {dish.sold > 0 && (
+                        <View style={[styles.dishBadge, { backgroundColor: '#D97706' }]}>
+                          <Text style={styles.dishBadgeText}>Đã bán {dish.sold}</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View style={styles.dishInfo}>
+                      <Text style={styles.dishTitle} numberOfLines={1}>
+                        {dish.name}
+                      </Text>
+                      <Text style={styles.dishRestaurant} numberOfLines={1}>
+                        {dish.restaurantName}
+                      </Text>
+
+                      <View style={styles.dishPriceRow}>
+                        <Text style={styles.dishPrice}>
+                          {dish.price.toLocaleString('vi-VN')}đ
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.addDishButton}
+                          activeOpacity={0.8}
+                          onPress={() =>
+                            openRestaurant({
+                              id: dish.restaurantId,
+                              name: dish.restaurantName,
+                              isOpen: dish.isOpen,
+                            })
+                          }
+                        >
+                          <Ionicons name="add" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* SECTION: QUÁN ĂN ĐANG MỞ */}
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="storefront" size={20} color="#059669" style={{ marginRight: 6 }} />
+                <Text style={styles.sectionTitle}>
+                  {isSearchMode ? 'Quán ăn tìm được' : 'Quán ăn đang mở'}
+                </Text>
+              </View>
+              <View style={styles.nearPill}>
+                <Text style={styles.nearPillText}>{shownRestaurants.length} quán</Text>
+              </View>
+            </View>
+
+            {/* DANH SÁCH QUÁN ĂN */}
+            <View style={styles.restaurantsList}>
+              {shownRestaurants.length === 0 ? (
+                <View style={styles.emptySearchBox}>
+                  <Text style={styles.emptySearchText}>Không tìm thấy quán ăn phù hợp.</Text>
+                </View>
+              ) : (
+                shownRestaurants.map((res) => (
+                  <TouchableOpacity
+                    key={res.id}
+                    style={[styles.restaurantCard, !res.isOpen && { opacity: 0.75 }]}
+                    activeOpacity={0.9}
+                    onPress={() => openRestaurant(res)}
+                  >
+                    <View style={styles.restaurantCoverWrapper}>
+                      <Image source={{ uri: res.image }} style={styles.restaurantCover} />
+
+                      <View style={styles.restaurantTopBadges}>
+                        <View
+                          style={[
+                            styles.statusBadgeOpen,
+                            !res.isOpen && { backgroundColor: 'rgba(100, 116, 139, 0.92)' },
+                          ]}
+                        >
+                          <View
+                            style={[styles.greenDot, !res.isOpen && { backgroundColor: '#CBD5E1' }]}
+                          />
+                          <Text style={styles.statusBadgeText}>
+                            {res.isOpen ? 'MỞ CỬA' : 'ĐÓNG CỬA'}
+                          </Text>
+                        </View>
+                        {res.reviews > 0 && (
+                          <View style={styles.statusBadgePromo}>
+                            <Text style={styles.statusBadgePromoText}>
+                              ⭐ {res.rating}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <View style={styles.restaurantImageBottomOverlay}>
+                        <View style={styles.overlayItem}>
+                          <Ionicons name="time-outline" size={13} color="#FFFFFF" />
+                          <Text style={styles.overlayText}>{res.openHours}</Text>
+                        </View>
+                        <View style={styles.overlayItem}>
+                          <Ionicons name="location-outline" size={13} color="#FFFFFF" />
+                          <Text style={styles.overlayText}>{res.district}</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={styles.restaurantDetails}>
+                      <View style={styles.restaurantHeaderRow}>
+                        <Text style={styles.restaurantName} numberOfLines={1}>
+                          {res.name}
+                        </Text>
+                        <View style={styles.ratingBadge}>
+                          <Ionicons name="star" size={12} color="#D97706" />
+                          <Text style={styles.ratingText}>{res.rating}</Text>
+                        </View>
+                      </View>
+
+                      <Text style={styles.restaurantCuisine} numberOfLines={1}>
+                        {res.cuisine} • {res.reviews} đánh giá
+                      </Text>
+
+                      <View style={styles.restaurantDivider} />
+
+                      <View style={styles.restaurantFooterRow}>
+                        <View style={styles.shippingRow}>
+                          <Ionicons name="bicycle-outline" size={16} color="#059669" />
+                          <Text style={styles.shippingFeeText}>
+                            Phí ship:{' '}
+                            <Text style={styles.shippingFeeBold}>
+                              {DELIVERY_FEE.toLocaleString('vi-VN')}đ
+                            </Text>
+                          </Text>
+                        </View>
+
+                        <View style={[styles.promoTagBadge, styles.promoTagBadgeTeal]}>
+                          <Text style={[styles.promoTagText, styles.promoTagTextTeal]}>
+                            {res.isOpen ? 'Đang nhận đơn' : 'Tạm ngừng nhận đơn'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </>
+        )}
 
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* THANH GIỎ HÀNG NỔI (Kèm đầy đủ số liệu nghiệp vụ) */}
+      {/* THANH GIỎ HÀNG NỔI */}
       {cartCount > 0 && (
         <View style={styles.floatingCartContainer}>
           <View style={styles.floatingCartBar}>
@@ -736,7 +846,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.viewCartButton}
               activeOpacity={0.85}
-              onPress={() => setShowCartModal(true)}
+              onPress={() => router.push('/cart')}
             >
               <Text style={styles.viewCartButtonText}>Xem giỏ</Text>
               <Ionicons name="arrow-forward" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
@@ -757,9 +867,7 @@ export default function HomeScreen() {
             size={22}
             color={activeTab === 'home' ? '#EA580C' : '#9CA3AF'}
           />
-          <Text
-            style={[styles.tabItemLabel, activeTab === 'home' && styles.tabItemLabelActive]}
-          >
+          <Text style={[styles.tabItemLabel, activeTab === 'home' && styles.tabItemLabelActive]}>
             Trang chủ
           </Text>
         </TouchableOpacity>
@@ -767,19 +875,14 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.tabItem}
           activeOpacity={0.7}
-          onPress={() => {
-            setActiveTab('orders');
-            setShowOrdersModal(true);
-          }}
+          onPress={() => void openOrdersModal()}
         >
           <Ionicons
             name={activeTab === 'orders' ? 'receipt' : 'receipt-outline'}
             size={22}
             color={activeTab === 'orders' ? '#EA580C' : '#9CA3AF'}
           />
-          <Text
-            style={[styles.tabItemLabel, activeTab === 'orders' && styles.tabItemLabelActive]}
-          >
+          <Text style={[styles.tabItemLabel, activeTab === 'orders' && styles.tabItemLabelActive]}>
             Đơn hàng
           </Text>
         </TouchableOpacity>
@@ -789,9 +892,20 @@ export default function HomeScreen() {
           activeOpacity={0.7}
           onPress={() => {
             setActiveTab('notif');
+            const active = orders.filter((o) =>
+              ['PENDING', 'CONFIRMED', 'PREPARING', 'DELIVERING'].includes(o.status)
+            );
+            if (!isAuthenticated) {
+              Alert.alert('Thông báo', 'Đăng nhập để nhận thông báo về đơn hàng của bạn.');
+              return;
+            }
             Alert.alert(
               'Thông báo',
-              '• Đơn hàng #ORD-98215 đang được shipper giao đến bạn!\n• Mã FREESHIP giảm 15k sắp hết hạn hôm nay!'
+              active.length === 0
+                ? 'Bạn không có đơn hàng nào đang xử lý.'
+                : active
+                    .map((o) => `• Đơn #${o.id} — ${ORDER_STATUS_LABEL[o.status]}`)
+                    .join('\n')
             );
           }}
         >
@@ -801,11 +915,11 @@ export default function HomeScreen() {
               size={22}
               color={activeTab === 'notif' ? '#EA580C' : '#9CA3AF'}
             />
-            <View style={styles.tabDotBadge} />
+            {orders.some((o) =>
+              ['PENDING', 'CONFIRMED', 'PREPARING', 'DELIVERING'].includes(o.status)
+            ) && <View style={styles.tabDotBadge} />}
           </View>
-          <Text
-            style={[styles.tabItemLabel, activeTab === 'notif' && styles.tabItemLabelActive]}
-          >
+          <Text style={[styles.tabItemLabel, activeTab === 'notif' && styles.tabItemLabelActive]}>
             Thông báo
           </Text>
         </TouchableOpacity>
@@ -823,16 +937,14 @@ export default function HomeScreen() {
             size={22}
             color={activeTab === 'account' ? '#EA580C' : '#9CA3AF'}
           />
-          <Text
-            style={[styles.tabItemLabel, activeTab === 'account' && styles.tabItemLabelActive]}
-          >
+          <Text style={[styles.tabItemLabel, activeTab === 'account' && styles.tabItemLabelActive]}>
             Tài khoản
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* ========================================================================= */}
-      {/* MODAL 1: GIỎ HÀNG & THANH TOÁN (CHECKOUT TRANSACTION)                     */}
+      {/* MODAL 1: GIỎ HÀNG & THANH TOÁN (POST /orders/checkout)                    */}
       {/* ========================================================================= */}
       <Modal visible={showCartModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -840,7 +952,7 @@ export default function HomeScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Chi tiết giỏ hàng</Text>
-                <Text style={styles.modalSubtitle}>Quán: {cartRestaurantName}</Text>
+                <Text style={styles.modalSubtitle}>Quán: {cartRestaurantName ?? '—'}</Text>
               </View>
               <TouchableOpacity onPress={() => setShowCartModal(false)}>
                 <Ionicons name="close" size={24} color="#374151" />
@@ -865,7 +977,7 @@ export default function HomeScreen() {
                     <View style={styles.qtyControlRow}>
                       <TouchableOpacity
                         style={styles.qtyBtn}
-                        onPress={() => updateQuantity(item.foodId, item.quantity - 1)}
+                        onPress={() => void updateQuantity(item.foodId, item.quantity - 1)}
                       >
                         <Ionicons
                           name={item.quantity === 1 ? 'trash-outline' : 'remove'}
@@ -876,7 +988,7 @@ export default function HomeScreen() {
                       <Text style={styles.qtyText}>{item.quantity}</Text>
                       <TouchableOpacity
                         style={styles.qtyBtn}
-                        onPress={() => updateQuantity(item.foodId, item.quantity + 1)}
+                        onPress={() => void updateQuantity(item.foodId, item.quantity + 1)}
                       >
                         <Ionicons name="add" size={14} color="#10B981" />
                       </TouchableOpacity>
@@ -893,117 +1005,84 @@ export default function HomeScreen() {
                   onPress={() => setShowAddressModal(true)}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.addressName}>
-                      {selectedAddress.recipientName} ({selectedAddress.phone})
-                    </Text>
-                    <Text style={styles.addressDetail}>
-                      {selectedAddress.detailAddress}, {selectedAddress.ward},{' '}
-                      {selectedAddress.district}, {selectedAddress.city}
-                    </Text>
+                    {selectedAddress ? (
+                      <>
+                        <Text style={styles.addressName}>
+                          {selectedAddress.recipientName} ({selectedAddress.phone})
+                        </Text>
+                        <Text style={styles.addressDetail}>
+                          {[
+                            selectedAddress.detailAddress,
+                            selectedAddress.ward,
+                            selectedAddress.district,
+                            selectedAddress.city,
+                          ]
+                            .filter(Boolean)
+                            .join(', ')}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={styles.addressName}>Bấm để thêm địa chỉ giao hàng</Text>
+                    )}
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
 
-              {/* Mã khuyến mãi Voucher */}
+              {/* Mã khuyến mãi */}
               <View style={styles.checkoutSection}>
                 <Text style={styles.checkoutSectionTitle}>🎟️ Mã ưu đãi</Text>
                 <View style={styles.voucherInputRow}>
                   <TextInput
                     style={styles.voucherInput}
-                    placeholder="Nhập mã (FREESHIP, GIAM30, FOOD50K)"
+                    placeholder="Nhập mã ưu đãi"
                     value={inputVoucher}
                     onChangeText={setInputVoucher}
                     autoCapitalize="characters"
                   />
                   <TouchableOpacity
                     style={styles.voucherApplyBtn}
-                    onPress={() => {
-                      if (applyVoucher(inputVoucher)) {
-                        setInputVoucher('');
-                      }
-                    }}
+                    onPress={() => Alert.alert('Chưa hỗ trợ mã ưu đãi', VOUCHER_NOT_SUPPORTED)}
                   >
                     <Text style={styles.voucherApplyBtnText}>Áp dụng</Text>
                   </TouchableOpacity>
                 </View>
-                {voucherCode && (
-                  <Text style={styles.appliedVoucherNote}>
-                    ✓ Đã áp dụng mã: <Text style={{ fontWeight: '700' }}>{voucherCode}</Text> (-
-                    {discount.toLocaleString('vi-VN')}đ)
-                  </Text>
-                )}
               </View>
 
               {/* Phương thức thanh toán */}
               <View style={styles.checkoutSection}>
                 <Text style={styles.checkoutSectionTitle}>💳 Phương thức thanh toán</Text>
                 <View style={styles.paymentMethodsRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentOption,
-                      paymentMethod === 'CASH' && styles.paymentOptionActive,
-                    ]}
-                    onPress={() => setPaymentMethod('CASH')}
-                  >
-                    <FontAwesome5
-                      name="money-bill-wave"
-                      size={16}
-                      color={paymentMethod === 'CASH' ? '#EA580C' : '#64748B'}
-                    />
-                    <Text
+                  {(
+                    [
+                      { key: 'CASH', label: 'Tiền mặt (COD)', icon: 'money-bill-wave' },
+                      { key: 'MOMO', label: 'Ví MoMo', icon: 'wallet' },
+                      { key: 'VNPAY', label: 'VNPAY / QR', icon: 'credit-card' },
+                    ] as const
+                  ).map((opt) => (
+                    <TouchableOpacity
+                      key={opt.key}
                       style={[
-                        styles.paymentOptionText,
-                        paymentMethod === 'CASH' && styles.paymentOptionTextActive,
+                        styles.paymentOption,
+                        paymentMethod === opt.key && styles.paymentOptionActive,
                       ]}
+                      onPress={() => setPaymentMethod(opt.key)}
                     >
-                      Tiền mặt (COD)
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentOption,
-                      paymentMethod === 'MOMO' && styles.paymentOptionActive,
-                    ]}
-                    onPress={() => setPaymentMethod('MOMO')}
-                  >
-                    <FontAwesome5
-                      name="wallet"
-                      size={16}
-                      color={paymentMethod === 'MOMO' ? '#EA580C' : '#64748B'}
-                    />
-                    <Text
-                      style={[
-                        styles.paymentOptionText,
-                        paymentMethod === 'MOMO' && styles.paymentOptionTextActive,
-                      ]}
-                    >
-                      Ví MoMo
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentOption,
-                      paymentMethod === 'VNPAY' && styles.paymentOptionActive,
-                    ]}
-                    onPress={() => setPaymentMethod('VNPAY')}
-                  >
-                    <FontAwesome5
-                      name="credit-card"
-                      size={16}
-                      color={paymentMethod === 'VNPAY' ? '#EA580C' : '#64748B'}
-                    />
-                    <Text
-                      style={[
-                        styles.paymentOptionText,
-                        paymentMethod === 'VNPAY' && styles.paymentOptionTextActive,
-                      ]}
-                    >
-                      VNPAY / QR
-                    </Text>
-                  </TouchableOpacity>
+                      <FontAwesome5
+                        name={opt.icon}
+                        size={16}
+                        color={paymentMethod === opt.key ? '#EA580C' : '#64748B'}
+                      />
+                      <Text
+                        style={[
+                          styles.paymentOptionText,
+                          paymentMethod === opt.key && styles.paymentOptionTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
 
@@ -1030,7 +1109,7 @@ export default function HomeScreen() {
                 </View>
                 {discount > 0 && (
                   <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryLabel, { color: '#059669' }]}>Giảm giá voucher</Text>
+                    <Text style={[styles.summaryLabel, { color: '#059669' }]}>Giảm giá</Text>
                     <Text style={[styles.summaryVal, { color: '#059669' }]}>
                       -{discount.toLocaleString('vi-VN')}đ
                     </Text>
@@ -1046,20 +1125,25 @@ export default function HomeScreen() {
 
             {/* Nút Xác nhận đặt đơn */}
             <TouchableOpacity
-              style={styles.confirmOrderBtn}
+              style={[styles.confirmOrderBtn, placingOrder && { opacity: 0.7 }]}
               activeOpacity={0.85}
-              onPress={handleConfirmOrder}
+              disabled={placingOrder}
+              onPress={() => void handleConfirmOrder()}
             >
-              <Text style={styles.confirmOrderBtnText}>
-                Xác nhận đặt hàng • {totalAmount.toLocaleString('vi-VN')}đ
-              </Text>
+              {placingOrder ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.confirmOrderBtnText}>
+                  Xác nhận đặt hàng • {totalAmount.toLocaleString('vi-VN')}đ
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
       {/* ========================================================================= */}
-      {/* MODAL 2: QUẢN LÝ ĐƠN HÀNG (THEO ĐÚNG 3 TAB NGHIỆP VỤ)                      */}
+      {/* MODAL 2: ĐƠN HÀNG (GET /orders/my-orders)                                 */}
       {/* ========================================================================= */}
       <Modal visible={showOrdersModal} animationType="slide">
         <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
@@ -1070,62 +1154,53 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* 3 Tab Nghiệp vụ: Đang xử lý | Đã giao | Đã hủy */}
+          {/* 3 Tab nghiệp vụ */}
           <View style={styles.orderFilterTabs}>
-            <TouchableOpacity
-              style={[
-                styles.orderFilterTab,
-                orderFilter === 'ACTIVE' && styles.orderFilterTabActive,
-              ]}
-              onPress={() => setOrderFilter('ACTIVE')}
-            >
-              <Text
+            {(
+              [
+                { key: 'ACTIVE', label: 'Đang xử lý' },
+                { key: 'COMPLETED', label: 'Đã giao' },
+                { key: 'CANCELLED', label: 'Đã hủy' },
+              ] as const
+            ).map((tab) => (
+              <TouchableOpacity
+                key={tab.key}
                 style={[
-                  styles.orderFilterTabText,
-                  orderFilter === 'ACTIVE' && styles.orderFilterTabTextActive,
+                  styles.orderFilterTab,
+                  orderFilter === tab.key && styles.orderFilterTabActive,
                 ]}
+                onPress={() => setOrderFilter(tab.key)}
               >
-                Đang xử lý
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.orderFilterTab,
-                orderFilter === 'COMPLETED' && styles.orderFilterTabActive,
-              ]}
-              onPress={() => setOrderFilter('COMPLETED')}
-            >
-              <Text
-                style={[
-                  styles.orderFilterTabText,
-                  orderFilter === 'COMPLETED' && styles.orderFilterTabTextActive,
-                ]}
-              >
-                Đã giao
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.orderFilterTab,
-                orderFilter === 'CANCELLED' && styles.orderFilterTabActive,
-              ]}
-              onPress={() => setOrderFilter('CANCELLED')}
-            >
-              <Text
-                style={[
-                  styles.orderFilterTabText,
-                  orderFilter === 'CANCELLED' && styles.orderFilterTabTextActive,
-                ]}
-              >
-                Đã hủy
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.orderFilterTabText,
+                    orderFilter === tab.key && styles.orderFilterTabTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          <ScrollView style={{ flex: 1, padding: 16 }} showsVerticalScrollIndicator={false}>
-            {filteredOrders.length === 0 ? (
+          <ScrollView
+            style={{ flex: 1, padding: 16 }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={ordersLoading}
+                onRefresh={() => void refreshOrders()}
+                colors={['#EA580C']}
+                tintColor="#EA580C"
+              />
+            }
+          >
+            {ordersLoading && orders.length === 0 ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator size="large" color="#EA580C" />
+                <Text style={styles.loadingText}>Đang tải đơn hàng...</Text>
+              </View>
+            ) : filteredOrders.length === 0 ? (
               <View style={styles.emptyOrdersBox}>
                 <Ionicons name="receipt-outline" size={48} color="#D1D5DB" />
                 <Text style={styles.emptyOrdersText}>Không có đơn hàng nào trong mục này.</Text>
@@ -1156,19 +1231,13 @@ export default function HomeScreen() {
                           ord.status === 'CANCELLED' && { color: '#DC2626' },
                         ]}
                       >
-                        {ord.status === 'PENDING' && 'Chờ quán xác nhận'}
-                        {ord.status === 'CONFIRMED' && 'Đã xác nhận'}
-                        {ord.status === 'PREPARING' && 'Đang chuẩn bị'}
-                        {ord.status === 'DELIVERING' && 'Đang giao hàng 🛵'}
-                        {ord.status === 'DELIVERED' && 'Giao thành công ✓'}
-                        {ord.status === 'CANCELLED' && 'Đã hủy'}
+                        {ORDER_STATUS_LABEL[ord.status]}
                       </Text>
                     </View>
                   </View>
 
                   <Text style={styles.orderRestaurantName}>{ord.restaurantName}</Text>
 
-                  {/* Danh sách món */}
                   <View style={styles.orderItemsPreview}>
                     {ord.items.map((it) => (
                       <View key={it.id} style={styles.orderItemLine}>
@@ -1188,20 +1257,32 @@ export default function HomeScreen() {
 
                   <View style={styles.orderCardFooter}>
                     <Text style={styles.orderTotalText}>
-                      Tổng tiền: <Text style={styles.orderTotalBold}>{ord.totalAmount.toLocaleString('vi-VN')}đ</Text>
+                      Tổng tiền:{' '}
+                      <Text style={styles.orderTotalBold}>
+                        {ord.totalAmount.toLocaleString('vi-VN')}đ
+                      </Text>
                     </Text>
 
-                    {/* Nghiệp vụ: Chỉ cho phép Huỷ khi đơn PENDING */}
+                    {/* Nghiệp vụ: chỉ huỷ được khi đơn còn PENDING */}
                     {ord.status === 'PENDING' && (
                       <TouchableOpacity
                         style={styles.cancelOrderBtn}
-                        onPress={() => cancelOrder(ord.id)}
+                        onPress={() =>
+                          Alert.alert('Huỷ đơn hàng', `Bạn chắc chắn muốn huỷ đơn #${ord.id}?`, [
+                            { text: 'Không', style: 'cancel' },
+                            {
+                              text: 'Huỷ đơn',
+                              style: 'destructive',
+                              onPress: () => void cancelOrder(ord.id),
+                            },
+                          ])
+                        }
                       >
                         <Text style={styles.cancelOrderBtnText}>Huỷ đơn</Text>
                       </TouchableOpacity>
                     )}
 
-                    {/* Nghiệp vụ: Đánh giá chỉ dành cho DELIVERED và 1 lần */}
+                    {/* Nghiệp vụ: đánh giá chỉ cho đơn DELIVERED và 1 lần duy nhất */}
                     {ord.status === 'DELIVERED' && !ord.reviewed && (
                       <TouchableOpacity
                         style={styles.reviewBtn}
@@ -1225,13 +1306,13 @@ export default function HomeScreen() {
       </Modal>
 
       {/* ========================================================================= */}
-      {/* MODAL 3: ĐÁNH GIÁ ĐƠN HÀNG (REVIEW MODAL)                                 */}
+      {/* MODAL 3: ĐÁNH GIÁ (POST /profile/reviews)                                 */}
       {/* ========================================================================= */}
       <Modal visible={showReviewModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.reviewModalContainer}>
             <Text style={styles.modalTitle}>Đánh giá bữa ăn</Text>
-            <Text style={styles.modalSubtitle}>Đơn hàng #{reviewOrderId}</Text>
+            <Text style={styles.modalSubtitle}>Đơn hàng #{reviewOrderId ?? ''}</Text>
 
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((star) => (
@@ -1262,8 +1343,16 @@ export default function HomeScreen() {
               >
                 <Text style={styles.modalCancelBtnText}>Để sau</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleSendReview}>
-                <Text style={styles.modalSubmitBtnText}>Gửi đánh giá</Text>
+              <TouchableOpacity
+                style={[styles.modalSubmitBtn, sendingReview && { opacity: 0.7 }]}
+                disabled={sendingReview}
+                onPress={() => void handleSendReview()}
+              >
+                {sendingReview ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>Gửi đánh giá</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1271,47 +1360,149 @@ export default function HomeScreen() {
       </Modal>
 
       {/* ========================================================================= */}
-      {/* MODAL 4: CHỌN ĐỊA CHỈ GIAO HÀNG                                           */}
+      {/* MODAL 4: ĐỊA CHỈ GIAO HÀNG (GET/POST /profile/addresses)                   */}
       {/* ========================================================================= */}
       <Modal visible={showAddressModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.addressModalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chọn địa chỉ giao hàng</Text>
-              <TouchableOpacity onPress={() => setShowAddressModal(false)}>
+              <Text style={styles.modalTitle}>Địa chỉ giao hàng</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowAddressModal(false);
+                  setShowAddAddressForm(false);
+                }}
+              >
                 <Ionicons name="close" size={24} color="#374151" />
               </TouchableOpacity>
             </View>
 
-            {addresses.map((addr) => (
+            {!isAuthenticated ? (
               <TouchableOpacity
-                key={addr.id}
-                style={[
-                  styles.addressItemRow,
-                  defaultAddress.id === addr.id && styles.addressItemRowActive,
-                ]}
+                style={styles.addressLoginPrompt}
                 onPress={() => {
-                  setDefaultAddress(addr.id);
-                  setSelectedAddress(addr);
                   setShowAddressModal(false);
+                  router.push('/auth');
                 }}
               >
-                <Ionicons
-                  name={defaultAddress.id === addr.id ? 'radio-button-on' : 'radio-button-off'}
-                  size={20}
-                  color={defaultAddress.id === addr.id ? '#EA580C' : '#9CA3AF'}
-                  style={{ marginRight: 10 }}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.addressName}>
-                    {addr.recipientName} ({addr.phone})
-                  </Text>
-                  <Text style={styles.addressDetail}>
-                    {addr.detailAddress}, {addr.ward}, {addr.district}, {addr.city}
-                  </Text>
-                </View>
+                <Ionicons name="log-in-outline" size={18} color="#EA580C" />
+                <Text style={styles.addressLoginPromptText}>
+                  Đăng nhập để quản lý địa chỉ giao hàng
+                </Text>
               </TouchableOpacity>
-            ))}
+            ) : (
+              <ScrollView style={{ maxHeight: 420 }}>
+                {addresses.length === 0 && !showAddAddressForm && (
+                  <Text style={styles.addressEmptyText}>
+                    Bạn chưa có địa chỉ nào. Hãy thêm địa chỉ để đặt hàng.
+                  </Text>
+                )}
+
+                {addresses.map((addr) => (
+                  <TouchableOpacity
+                    key={addr.id}
+                    style={[
+                      styles.addressItemRow,
+                      selectedAddress?.id === addr.id && styles.addressItemRowActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedAddressId(addr.id);
+                      void setDefaultAddress(addr.id);
+                      setShowAddressModal(false);
+                    }}
+                  >
+                    <Ionicons
+                      name={selectedAddress?.id === addr.id ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={selectedAddress?.id === addr.id ? '#EA580C' : '#9CA3AF'}
+                      style={{ marginRight: 10 }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.addressName}>
+                        {addr.recipientName} ({addr.phone})
+                        {addr.isDefault ? '  • Mặc định' : ''}
+                      </Text>
+                      <Text style={styles.addressDetail}>
+                        {[addr.detailAddress, addr.ward, addr.district, addr.city]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+
+                {/* Form thêm địa chỉ mới */}
+                {showAddAddressForm ? (
+                  <View style={styles.addAddressForm}>
+                    <TextInput
+                      style={styles.addAddressInput}
+                      placeholder="Tên người nhận *"
+                      value={newAddr.receiverName}
+                      onChangeText={(t) => setNewAddr((s) => ({ ...s, receiverName: t }))}
+                    />
+                    <TextInput
+                      style={styles.addAddressInput}
+                      placeholder="Số điện thoại *"
+                      keyboardType="phone-pad"
+                      value={newAddr.phone}
+                      onChangeText={(t) => setNewAddr((s) => ({ ...s, phone: t }))}
+                    />
+                    <TextInput
+                      style={styles.addAddressInput}
+                      placeholder="Số nhà, tên đường *"
+                      value={newAddr.addressDetail}
+                      onChangeText={(t) => setNewAddr((s) => ({ ...s, addressDetail: t }))}
+                    />
+                    <TextInput
+                      style={styles.addAddressInput}
+                      placeholder="Phường / Xã"
+                      value={newAddr.ward}
+                      onChangeText={(t) => setNewAddr((s) => ({ ...s, ward: t }))}
+                    />
+                    <TextInput
+                      style={styles.addAddressInput}
+                      placeholder="Quận / Huyện"
+                      value={newAddr.district}
+                      onChangeText={(t) => setNewAddr((s) => ({ ...s, district: t }))}
+                    />
+                    <TextInput
+                      style={styles.addAddressInput}
+                      placeholder="Tỉnh / Thành phố"
+                      value={newAddr.city}
+                      onChangeText={(t) => setNewAddr((s) => ({ ...s, city: t }))}
+                    />
+
+                    <View style={styles.addAddressActions}>
+                      <TouchableOpacity
+                        style={styles.modalCancelBtn}
+                        onPress={() => setShowAddAddressForm(false)}
+                      >
+                        <Text style={styles.modalCancelBtnText}>Huỷ</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.modalSubmitBtn, savingAddress && { opacity: 0.7 }]}
+                        disabled={savingAddress}
+                        onPress={() => void handleSaveNewAddress()}
+                      >
+                        {savingAddress ? (
+                          <ActivityIndicator color="#FFFFFF" size="small" />
+                        ) : (
+                          <Text style={styles.modalSubmitBtnText}>Lưu địa chỉ</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.addAddressBtn}
+                    onPress={() => setShowAddAddressForm(true)}
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color="#EA580C" />
+                    <Text style={styles.addAddressBtnText}>Thêm địa chỉ mới</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
@@ -2469,5 +2660,112 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF7ED',
     borderRadius: 10,
     paddingHorizontal: 8,
+  },
+
+  /* ── Style bổ sung cho trạng thái tải / lỗi / địa chỉ ────────────────── */
+  avatarInitial: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  loadingBox: {
+    paddingVertical: 48,
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  errorBox: {
+    margin: 16,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    alignItems: 'center',
+    gap: 8,
+  },
+  errorTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#991B1B',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#B91C1C',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  retryBtn: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  retryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  addressLoginPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 20,
+  },
+  addressLoginPromptText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EA580C',
+  },
+  addressEmptyText: {
+    fontSize: 13,
+    color: '#6B7280',
+    paddingVertical: 12,
+    textAlign: 'center',
+  },
+  addAddressBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    marginTop: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#FDBA74',
+    backgroundColor: '#FFF7ED',
+  },
+  addAddressBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#EA580C',
+  },
+  addAddressForm: {
+    marginTop: 8,
+    gap: 8,
+  },
+  addAddressInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#111827',
+    backgroundColor: '#F9FAFB',
+  },
+  addAddressActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
   },
 });

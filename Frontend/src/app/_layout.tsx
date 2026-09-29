@@ -16,6 +16,8 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="auth" options={{ headerShown: false }} />
+          <Stack.Screen name="restaurant" options={{ headerShown: false }} />
+          <Stack.Screen name="cart" options={{ headerShown: false }} />
           <Stack.Screen name="explore" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>

@@ -9,20 +9,87 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import { useApp } from '@/context/AppContext';
+
 export default function AuthScreen() {
   const router = useRouter();
+  const { user, login, register, logout } = useApp();
+
   const [isLogin, setIsLogin] = useState(true);
-  const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [saveSession, setSaveSession] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  // ── Đăng nhập: POST /users/login (Backend chỉ nhận email + password) ───────
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập email và mật khẩu.');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('Mật khẩu quá ngắn', 'Mật khẩu phải có ít nhất 6 ký tự.');
+      return;
+    }
+
+    setSubmitting(true);
+    const ok = await login(email, password);
+    setSubmitting(false);
+
+    if (ok) router.replace('/');
+  };
+
+  // ── Đăng ký: POST /users rồi tự đăng nhập luôn ────────────────────────────
+  const handleRegister = async () => {
+    if (!fullName.trim() || !phone.trim() || !password) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập họ tên, số điện thoại và mật khẩu.');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('Mật khẩu quá ngắn', 'Mật khẩu phải có ít nhất 6 ký tự.');
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert(
+        'Cần email để đăng nhập',
+        'Hệ thống đăng nhập bằng email, vui lòng nhập email cho tài khoản này.'
+      );
+      return;
+    }
+
+    setSubmitting(true);
+    const created = await register({ fullName, phone, password, email });
+    if (!created) {
+      setSubmitting(false);
+      return;
+    }
+
+    const loggedIn = await login(email, password);
+    setSubmitting(false);
+
+    if (loggedIn) {
+      Alert.alert('Đăng ký thành công 🎉', `Chào mừng ${fullName.trim()} đến với Food!`);
+      router.replace('/');
+    } else {
+      Alert.alert('Đăng ký thành công', 'Bạn hãy đăng nhập để tiếp tục.');
+      setIsLogin(true);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    Alert.alert('Đã đăng xuất', 'Bạn đã đăng xuất khỏi tài khoản.');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -61,6 +128,25 @@ export default function AuthScreen() {
               <Text style={styles.appSlogan}>Món ngon nóng hổi, giao tận cửa</Text>
             </View>
           </View>
+
+          {/* Tài khoản đang đăng nhập (lấy từ GET /profile/me) */}
+          {user && (
+            <View style={styles.currentUserCard}>
+              <View style={styles.currentUserAvatar}>
+                <Ionicons name="person" size={22} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.currentUserName}>{user.fullName}</Text>
+                <Text style={styles.currentUserMeta}>
+                  {user.email || user.phone} • {user.role}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={16} color="#B91C1C" />
+                <Text style={styles.logoutButtonText}>Đăng xuất</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Tabs */}
           <View style={styles.tabContainer}>
@@ -109,16 +195,17 @@ export default function AuthScreen() {
               </>
             )}
 
-            <Text style={styles.inputLabel}>{isLogin ? 'Email hoặc Số điện thoại *' : 'Email (Tuỳ chọn)'}</Text>
+            <Text style={styles.inputLabel}>Email *</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="at-outline" size={20} color="#888" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder={isLogin ? "email@vidu.com hoặc 0901234567" : "email@vidu.com"}
+                placeholder="email@vidu.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                value={emailOrPhone}
-                onChangeText={setEmailOrPhone}
+                autoCorrect={false}
+                value={email}
+                onChangeText={setEmail}
               />
             </View>
 
@@ -163,11 +250,22 @@ export default function AuthScreen() {
               </View>
             )}
 
-            <TouchableOpacity style={styles.submitButton} activeOpacity={0.8}>
-              <Text style={styles.submitButtonText}>
-                {isLogin ? 'ĐĂNG NHẬP NGAY' : 'ĐĂNG KÝ TÀI KHOẢN'}
-              </Text>
-              <Ionicons name={isLogin ? "log-in-outline" : "person-add-outline"} size={20} color="#fff" style={{ marginLeft: 8 }} />
+            <TouchableOpacity
+              style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+              activeOpacity={0.8}
+              disabled={submitting}
+              onPress={isLogin ? handleLogin : handleRegister}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.submitButtonText}>
+                    {isLogin ? 'ĐĂNG NHẬP NGAY' : 'ĐĂNG KÝ TÀI KHOẢN'}
+                  </Text>
+                  <Ionicons name={isLogin ? "log-in-outline" : "person-add-outline"} size={20} color="#fff" style={{ marginLeft: 8 }} />
+                </>
+              )}
             </TouchableOpacity>
 
             {isLogin && (
@@ -425,6 +523,52 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 12,
     marginTop: 8,
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
+  currentUserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    gap: 10,
+  },
+  currentUserAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#C2410C',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  currentUserName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#7C2D12',
+  },
+  currentUserMeta: {
+    fontSize: 12,
+    color: '#9A3412',
+    marginTop: 2,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
+  },
+  logoutButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B91C1C',
   },
   submitButtonText: {
     color: '#fff',

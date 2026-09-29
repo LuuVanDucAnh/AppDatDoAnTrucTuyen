@@ -14,6 +14,13 @@ export const getAll = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+export const getFeatured = async (req, res, next) => {
+  try {
+    const { total, data } = await service.getFeatured({ limit: req.query.limit })
+    sendSuccess(res, 'Lấy danh sách món bán chạy thành công', data, { total })
+  } catch (err) { next(err) }
+}
+
 export const getById = async (req, res, next) => {
   try {
     const data = await service.getById(req.params.id)

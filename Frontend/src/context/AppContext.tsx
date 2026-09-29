@@ -1,5 +1,33 @@
-import React, { createContext, useContext, useState } from 'react';
+import { router } from 'expo-router';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
+
+import {
+  ApiError,
+  addressApi,
+  authApi,
+  bootstrapTokens,
+  cartApi,
+  hasSession,
+  orderApi,
+  resetTokens,
+  reviewApi,
+  setUnauthorizedHandler,
+} from '@/services/api';
+import { DELIVERY_FEE, resolveImageUrl } from '@/services/config';
+import type {
+  ApiAddress,
+  ApiCart,
+  ApiOrder,
+  ApiUser,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+} from '@/services/types';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KIỂU DỮ LIỆU DÙNG TRONG UI (đã chuyển từ snake_case của API sang camelCase)
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface User {
   id: number;
@@ -7,7 +35,6 @@ export interface User {
   email: string;
   phone: string;
   role: 'CUSTOMER' | 'RESTAURANT_OWNER' | 'ADMIN';
-  avatar?: string;
 }
 
 export interface Address {
@@ -22,487 +49,635 @@ export interface Address {
 }
 
 export interface CartItem {
-  id: string;
+  /** id của cart_items trên Backend */
+  id: number;
   foodId: number;
   name: string;
   price: number;
   quantity: number;
-  image: string;
+  image?: string;
+  note?: string;
   restaurantId: number;
   restaurantName: string;
+}
+
+export interface OrderItemView {
+  id: number;
+  foodId: number;
+  name: string;
+  price: number;
+  quantity: number;
 }
 
 export interface Order {
-  id: string;
+  id: number;
   restaurantId: number;
   restaurantName: string;
-  status: 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
-  address: Address;
-  items: CartItem[];
-  paymentMethod: 'CASH' | 'MOMO' | 'VNPAY';
-  paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
+  restaurantImage?: string;
+  status: OrderStatus;
+  items: OrderItemView[];
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
   foodTotal: number;
   deliveryFee: number;
   discount: number;
-  voucherCode?: string;
   totalAmount: number;
   note?: string;
   createdAt: string;
-  reviewed?: boolean;
+  reviewed: boolean;
   reviewRating?: number;
-  reviewComment?: string;
+}
+
+export type OrderFilter = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+
+export interface NewAddressInput {
+  receiverName: string;
+  phone: string;
+  addressDetail: string;
+  ward?: string;
+  district?: string;
+  city?: string;
+  isDefault?: boolean;
 }
 
 interface AppContextType {
+  // Xác thực
   user: User | null;
-  setUser: (user: User | null) => void;
+  isAuthenticated: boolean;
+  /** true khi app đang đọc token đã lưu lúc khởi động */
+  authLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (input: {
+    fullName: string;
+    phone: string;
+    password: string;
+    email?: string;
+  }) => Promise<boolean>;
+  logout: () => Promise<void>;
+
+  // Địa chỉ
   addresses: Address[];
-  defaultAddress: Address;
-  setDefaultAddress: (id: number) => void;
+  defaultAddress: Address | null;
+  addressesLoading: boolean;
+  refreshAddresses: () => Promise<void>;
+  setDefaultAddress: (id: number) => Promise<void>;
+  addAddress: (input: NewAddressInput) => Promise<Address | null>;
+
+  // Giỏ hàng
   cartRestaurantId: number | null;
   cartRestaurantName: string | null;
+  cartRestaurantAddress: string | null;
   cartItems: CartItem[];
   cartCount: number;
   foodTotal: number;
   deliveryFee: number;
   discount: number;
-  voucherCode: string | null;
   totalAmount: number;
+  cartLoading: boolean;
+  refreshCart: () => Promise<void>;
   addToCart: (
-    food: { id: number; name: string; price: number; image: string },
+    food: { id: number; name: string; price: number; image?: string },
     restaurant: { id: number; name: string; isOpen?: boolean }
-  ) => void;
-  updateQuantity: (foodId: number, quantity: number) => void;
-  removeFromCart: (foodId: number) => void;
-  clearCart: () => void;
-  applyVoucher: (code: string) => boolean;
+  ) => Promise<void>;
+  updateQuantity: (foodId: number, quantity: number) => Promise<void>;
+  removeFromCart: (foodId: number) => Promise<void>;
+  clearCart: () => Promise<void>;
+
+  // Đơn hàng
+  orders: Order[];
+  ordersLoading: boolean;
+  refreshOrders: () => Promise<void>;
   checkout: (
     address: Address,
-    paymentMethod: 'CASH' | 'MOMO' | 'VNPAY',
+    paymentMethod: PaymentMethod,
     note?: string
-  ) => Order | null;
-  orders: Order[];
-  cancelOrder: (orderId: string) => boolean;
-  submitReview: (orderId: string, rating: number, comment?: string) => boolean;
+  ) => Promise<Order | null>;
+  cancelOrder: (orderId: number) => Promise<boolean>;
+  submitReview: (orderId: number, rating: number, comment?: string) => Promise<boolean>;
 }
-
-const DEFAULT_ADDRESSES: Address[] = [
-  {
-    id: 1,
-    recipientName: 'Đức Anh',
-    phone: '0987654321',
-    detailAddress: 'Số 123 Đường Nguyễn Tri Phương',
-    ward: 'Phường 5',
-    district: 'Quận 5',
-    city: 'TP. Hồ Chí Minh',
-    isDefault: true,
-  },
-  {
-    id: 2,
-    recipientName: 'Đức Anh (Công ty)',
-    phone: '0987654321',
-    detailAddress: 'Tòa nhà Landmark 81, 720A Điện Biên Phủ',
-    ward: 'Phường 22',
-    district: 'Bình Thạnh',
-    city: 'TP. Hồ Chí Minh',
-    isDefault: false,
-  },
-];
-
-const INITIAL_ORDERS: Order[] = [
-  {
-    id: 'ORD-98214',
-    restaurantId: 1,
-    restaurantName: 'Cơm Tấm Ba Ghiền',
-    status: 'DELIVERED',
-    address: DEFAULT_ADDRESSES[0],
-    items: [
-      {
-        id: 'ci-1',
-        foodId: 101,
-        name: 'Cơm Tấm Sườn Bì Chả',
-        price: 55000,
-        quantity: 2,
-        image:
-          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
-        restaurantId: 1,
-        restaurantName: 'Cơm Tấm Ba Ghiền',
-      },
-    ],
-    paymentMethod: 'CASH',
-    paymentStatus: 'PAID',
-    foodTotal: 110000,
-    deliveryFee: 15000,
-    discount: 15000,
-    voucherCode: 'FREESHIP',
-    totalAmount: 110000,
-    createdAt: 'Hôm qua, 18:30',
-    reviewed: false,
-  },
-  {
-    id: 'ORD-98215',
-    restaurantId: 3,
-    restaurantName: 'Trà Sữa KOI Thé - Pasteur',
-    status: 'DELIVERING',
-    address: DEFAULT_ADDRESSES[0],
-    items: [
-      {
-        id: 'ci-2',
-        foodId: 103,
-        name: 'Trà Sữa KOI Macchiato',
-        price: 45000,
-        quantity: 2,
-        image:
-          'https://images.unsplash.com/photo-1558857563-b37cf5a5b515?w=600&auto=format&fit=crop&q=80',
-        restaurantId: 3,
-        restaurantName: 'Trà Sữa KOI Thé - Pasteur',
-      },
-    ],
-    paymentMethod: 'MOMO',
-    paymentStatus: 'PAID',
-    foodTotal: 90000,
-    deliveryFee: 15000,
-    discount: 0,
-    totalAmount: 105000,
-    note: 'Ít đá 50% đường giúp mình nhé',
-    createdAt: 'Hôm nay, 08:15',
-  },
-];
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  // Người dùng hiện tại
-  const [user, setUser] = useState<User | null>({
-    id: 1,
-    fullName: 'Lưu Văn Đức Anh',
-    email: 'ducanh@gmail.com',
-    phone: '0987654321',
-    role: 'CUSTOMER',
-  });
+// ─────────────────────────────────────────────────────────────────────────────
+// MAPPER: API (snake_case) → UI (camelCase)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Địa chỉ giao hàng
-  const [addresses, setAddresses] = useState<Address[]>(DEFAULT_ADDRESSES);
-  const defaultAddress = addresses.find((a) => a.isDefault) || addresses[0];
+const num = (value: number | string | null | undefined) => Number(value ?? 0) || 0;
 
-  const setDefaultAddress = (id: number) => {
-    setAddresses((prev) =>
-      prev.map((a) => ({
-        ...a,
-        isDefault: a.id === id,
-      }))
-    );
+function mapUser(u: ApiUser): User {
+  return {
+    id: u.id,
+    fullName: u.full_name,
+    email: u.email ?? '',
+    phone: u.phone_number,
+    role: u.role ?? 'CUSTOMER',
   };
+}
 
-  // Trạng thái giỏ hàng
-  const [cartRestaurantId, setCartRestaurantId] = useState<number | null>(1);
-  const [cartRestaurantName, setCartRestaurantName] = useState<string | null>('Cơm Tấm Ba Ghiền');
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: 'ci-init-1',
-      foodId: 1,
-      name: 'Cơm Tấm Sườn Bì Chả',
-      price: 55000,
-      quantity: 1,
-      image:
-        'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
-      restaurantId: 1,
-      restaurantName: 'Cơm Tấm Ba Ghiền',
-    },
-    {
-      id: 'ci-init-2',
-      foodId: 2,
-      name: 'Canh Khổ Qua Nhồi Thịt',
-      price: 35000,
-      quantity: 1,
-      image:
-        'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
-      restaurantId: 1,
-      restaurantName: 'Cơm Tấm Ba Ghiền',
-    },
+function mapAddress(a: ApiAddress): Address {
+  return {
+    id: a.id,
+    recipientName: a.receiver_name,
+    phone: a.phone_number,
+    detailAddress: a.address_detail,
+    ward: a.ward ?? '',
+    district: a.district ?? '',
+    city: a.city ?? '',
+    isDefault: Boolean(a.is_default),
+  };
+}
+
+function mapCartItems(cart: ApiCart | null): CartItem[] {
+  if (!cart?.items?.length) return [];
+  return cart.items.map((it) => ({
+    id: it.id,
+    foodId: it.food_id,
+    name: it.food_name,
+    price: num(it.price),
+    quantity: it.quantity,
+    image: resolveImageUrl(it.image),
+    note: it.note ?? undefined,
+    restaurantId: cart.restaurant?.id ?? 0,
+    restaurantName: cart.restaurant?.name ?? '',
+  }));
+}
+
+function formatOrderTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+
+  const now = new Date();
+  const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) return `Hôm nay, ${time}`;
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return `Hôm qua, ${time}`;
+
+  return `${date.toLocaleDateString('vi-VN')}, ${time}`;
+}
+
+function mapOrder(o: ApiOrder, reviewedMap: Map<number, number>): Order {
+  return {
+    id: o.id,
+    restaurantId: o.restaurant_id,
+    restaurantName: o.restaurant?.name ?? `Nhà hàng #${o.restaurant_id}`,
+    restaurantImage: resolveImageUrl(o.restaurant?.image),
+    status: o.status,
+    items: (o.items ?? []).map((it) => ({
+      id: it.id,
+      foodId: it.food_id,
+      name: it.food_name,
+      price: num(it.unit_price),
+      quantity: it.quantity,
+    })),
+    paymentMethod: o.payment?.payment_method ?? 'CASH',
+    paymentStatus: o.payment?.status ?? 'UNPAID',
+    foodTotal: num(o.food_total),
+    deliveryFee: num(o.delivery_fee),
+    discount: num(o.discount),
+    totalAmount: num(o.total_amount),
+    note: o.note || undefined,
+    createdAt: formatOrderTime(o.created_at),
+    reviewed: reviewedMap.has(o.id),
+    reviewRating: reviewedMap.get(o.id),
+  };
+}
+
+/** Hiển thị lỗi từ Backend bằng đúng message tiếng Việt mà server trả về. */
+function showApiError(err: unknown, fallbackTitle = 'Có lỗi xảy ra') {
+  const message =
+    err instanceof ApiError ? err.message : err instanceof Error ? err.message : String(err);
+  Alert.alert(fallbackTitle, message);
+}
+
+function promptLogin() {
+  Alert.alert('Bạn chưa đăng nhập', 'Vui lòng đăng nhập để tiếp tục.', [
+    { text: 'Để sau', style: 'cancel' },
+    { text: 'Đăng nhập', onPress: () => router.push('/auth') },
   ]);
+}
 
-  const [voucherCode, setVoucherCode] = useState<string | null>(null);
-  const [discount, setDiscount] = useState<number>(0);
+// ─────────────────────────────────────────────────────────────────────────────
+// PROVIDER
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Danh sách đơn hàng
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // Tính toán giỏ hàng theo nghiệp vụ
-  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const foodTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = cartItems.length > 0 ? 15000 : 0; // 15.000đ cố định theo nghiệp vụ
-  const totalAmount = Math.max(0, foodTotal + deliveryFee - discount);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
 
-  // 1. Thêm món vào giỏ hàng (Áp dụng đúng nghiệp vụ: 1 quán tại 1 thời điểm & Quán phải OPEN)
-  const addToCart = (
-    food: { id: number; name: string; price: number; image: string },
-    restaurant: { id: number; name: string; isOpen?: boolean }
-  ) => {
-    // Nghiệp vụ: Nếu quán đóng cửa -> không cho đặt món
-    if (restaurant.isOpen === false) {
-      Alert.alert(
-        'Quán hiện đóng cửa',
-        `Nhà hàng "${restaurant.name}" hiện đang tạm đóng cửa. Vui lòng quay lại sau!`
-      );
+  const [cart, setCart] = useState<ApiCart | null>(null);
+  const [cartLoading, setCartLoading] = useState(false);
+
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  const isAuthenticated = user !== null;
+
+  // ── Đăng xuất cục bộ (không gọi API) ──────────────────────────────────────
+  const resetLocalState = useCallback(() => {
+    setUser(null);
+    setAddresses([]);
+    setCart(null);
+    setOrders([]);
+  }, []);
+
+  // ── Tải dữ liệu ───────────────────────────────────────────────────────────
+  const refreshCart = useCallback(async () => {
+    if (!hasSession()) {
+      setCart(null);
       return;
     }
+    setCartLoading(true);
+    try {
+      setCart(await cartApi.getMyCart());
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 401)) showApiError(err, 'Không tải được giỏ hàng');
+    } finally {
+      setCartLoading(false);
+    }
+  }, []);
 
-    // Nghiệp vụ: Nếu giỏ đang có món của quán khác -> Hỏi xác nhận tạo giỏ mới
-    if (cartRestaurantId && cartRestaurantId !== restaurant.id && cartItems.length > 0) {
-      Alert.alert(
-        'Tạo giỏ hàng mới?',
-        `Giỏ hàng của bạn đang có món của "${cartRestaurantName}". Bạn có muốn xoá giỏ hàng cũ để bắt đầu đặt từ "${restaurant.name}" không?`,
-        [
-          { text: 'Hủy', style: 'cancel' },
-          {
-            text: 'Tạo giỏ mới',
-            style: 'destructive',
-            onPress: () => {
-              setCartRestaurantId(restaurant.id);
-              setCartRestaurantName(restaurant.name);
-              setVoucherCode(null);
-              setDiscount(0);
-              setCartItems([
-                {
-                  id: `ci-${Date.now()}`,
-                  foodId: food.id,
-                  name: food.name,
-                  price: food.price,
-                  quantity: 1,
-                  image: food.image,
-                  restaurantId: restaurant.id,
-                  restaurantName: restaurant.name,
-                },
-              ]);
-              Alert.alert('Đã tạo giỏ mới', `Đã thêm "${food.name}" vào giỏ hàng của "${restaurant.name}"!`);
-            },
-          },
-        ]
-      );
+  const refreshAddresses = useCallback(async () => {
+    if (!hasSession()) {
+      setAddresses([]);
       return;
     }
+    setAddressesLoading(true);
+    try {
+      const data = await addressApi.getMine();
+      setAddresses(data.map(mapAddress));
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 401))
+        showApiError(err, 'Không tải được danh sách địa chỉ');
+    } finally {
+      setAddressesLoading(false);
+    }
+  }, []);
 
-    // Cùng quán hoặc giỏ trống: Thêm hoặc tăng số lượng
-    setCartRestaurantId(restaurant.id);
-    setCartRestaurantName(restaurant.name);
-
-    setCartItems((prev) => {
-      const existing = prev.find((item) => item.foodId === food.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.foodId === food.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
+  const refreshOrders = useCallback(async () => {
+    if (!hasSession()) {
+      setOrders([]);
+      return;
+    }
+    setOrdersLoading(true);
+    try {
+      // Lấy đánh giá của tôi trước để biết đơn nào đã đánh giá (mỗi đơn chỉ 1 lần)
+      let reviewedMap = new Map<number, number>();
+      try {
+        const reviews = await reviewApi.getMine();
+        reviewedMap = new Map(reviews.map((r) => [r.order_id, r.rating]));
+      } catch {
+        // Không lấy được đánh giá thì vẫn hiển thị đơn hàng
       }
-      return [
-        ...prev,
-        {
-          id: `ci-${Date.now()}`,
-          foodId: food.id,
-          name: food.name,
-          price: food.price,
-          quantity: 1,
-          image: food.image,
-          restaurantId: restaurant.id,
-          restaurantName: restaurant.name,
-        },
-      ];
+      const { data } = await orderApi.getMyOrders();
+      setOrders(data.map((o) => mapOrder(o, reviewedMap)));
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 401))
+        showApiError(err, 'Không tải được đơn hàng');
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  const loadUserData = useCallback(async () => {
+    await Promise.all([refreshCart(), refreshAddresses(), refreshOrders()]);
+  }, [refreshAddresses, refreshCart, refreshOrders]);
+
+  // ── Khởi động: đọc token đã lưu & lấy lại thông tin user ───────────────────
+  useEffect(() => {
+    let mounted = true;
+
+    setUnauthorizedHandler(() => {
+      resetLocalState();
+      Alert.alert('Phiên đăng nhập đã hết hạn', 'Vui lòng đăng nhập lại để tiếp tục.');
     });
 
-    Alert.alert('Thành công', `Đã thêm "${food.name}" vào giỏ hàng!`);
-  };
-
-  // 2. Sửa số lượng món trong giỏ (giảm về 0 tự động xoá)
-  const updateQuantity = (foodId: number, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(foodId);
-      return;
-    }
-    setCartItems((prev) =>
-      prev.map((item) => (item.foodId === foodId ? { ...item, quantity } : item))
-    );
-  };
-
-  // 3. Xoá món khỏi giỏ
-  const removeFromCart = (foodId: number) => {
-    setCartItems((prev) => {
-      const filtered = prev.filter((item) => item.foodId !== foodId);
-      if (filtered.length === 0) {
-        setCartRestaurantId(null);
-        setCartRestaurantName(null);
-        setVoucherCode(null);
-        setDiscount(0);
+    (async () => {
+      try {
+        const { accessToken } = await bootstrapTokens();
+        if (!accessToken) return;
+        const me = await authApi.me();
+        if (!mounted) return;
+        setUser(mapUser(me));
+        await loadUserData();
+      } catch {
+        await resetTokens();
+      } finally {
+        if (mounted) setAuthLoading(false);
       }
-      return filtered;
-    });
-  };
+    })();
 
-  // 4. Xoá toàn bộ giỏ
-  const clearCart = () => {
-    setCartItems([]);
-    setCartRestaurantId(null);
-    setCartRestaurantName(null);
-    setVoucherCode(null);
-    setDiscount(0);
-  };
+    return () => {
+      mounted = false;
+      setUnauthorizedHandler(null);
+    };
+    // Chỉ chạy 1 lần khi app khởi động
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // 5. Áp dụng mã giảm giá
-  const applyVoucher = (code: string): boolean => {
-    const upper = code.trim().toUpperCase();
-    if (upper === 'FREESHIP') {
-      setVoucherCode('FREESHIP');
-      setDiscount(15000); // Miễn phí giao hàng 15k
-      Alert.alert('Áp dụng mã thành công', 'Giảm 15.000đ phí giao hàng với mã FREESHIP!');
-      return true;
-    }
-    if (upper === 'MILKTEA' || upper === 'GIAM30') {
-      setVoucherCode(upper);
-      const discountVal = Math.min(Math.round(foodTotal * 0.3), 30000);
-      setDiscount(discountVal);
-      Alert.alert('Áp dụng mã thành công', `Giảm 30% (${discountVal.toLocaleString('vi-VN')}đ) đơn hàng!`);
-      return true;
-    }
-    if (upper === 'FOOD50K') {
-      if (foodTotal < 150000) {
-        Alert.alert('Không đủ điều kiện', 'Mã FOOD50K áp dụng cho đơn từ 150.000đ trở lên!');
+  // ── Xác thực ──────────────────────────────────────────────────────────────
+  const login = useCallback(
+    async (email: string, password: string) => {
+      try {
+        const apiUser = await authApi.login(email.trim(), password);
+        setUser(mapUser(apiUser));
+        setAuthLoading(false);
+        // Token đã có → tải giỏ hàng, địa chỉ, đơn hàng của user vừa đăng nhập
+        await loadUserData();
+        return true;
+      } catch (err) {
+        showApiError(err, 'Đăng nhập thất bại');
         return false;
       }
-      setVoucherCode('FOOD50K');
-      setDiscount(50000);
-      Alert.alert('Áp dụng mã thành công', 'Giảm 50.000đ cho đơn hàng!');
-      return true;
-    }
-    Alert.alert('Mã không hợp lệ', 'Vui lòng kiểm tra lại mã ưu đãi hoặc thời hạn sử dụng!');
-    return false;
-  };
-
-  // 6. Đặt hàng (Checkout) theo đúng Transaction nghiệp vụ
-  const checkout = (
-    address: Address,
-    paymentMethod: 'CASH' | 'MOMO' | 'VNPAY',
-    note?: string
-  ): Order | null => {
-    if (cartItems.length === 0 || !cartRestaurantId || !cartRestaurantName) {
-      Alert.alert('Giỏ hàng trống', 'Vui lòng thêm món trước khi thanh toán!');
-      return null;
-    }
-
-    const newOrder: Order = {
-      id: `ORD-${Math.floor(10000 + Math.random() * 90000)}`,
-      restaurantId: cartRestaurantId,
-      restaurantName: cartRestaurantName,
-      status: 'PENDING',
-      address,
-      items: [...cartItems],
-      paymentMethod,
-      paymentStatus: paymentMethod === 'CASH' ? 'UNPAID' : 'PAID',
-      foodTotal,
-      deliveryFee,
-      discount,
-      voucherCode: voucherCode || undefined,
-      totalAmount,
-      note,
-      createdAt: 'Vừa xong',
-    };
-
-    setOrders((prev) => [newOrder, ...prev]);
-    clearCart();
-
-    return newOrder;
-  };
-
-  // 7. Huỷ đơn hàng (Chỉ huỷ được khi PENDING theo nghiệp vụ)
-  const cancelOrder = (orderId: string): boolean => {
-    const target = orders.find((o) => o.id === orderId);
-    if (!target) return false;
-
-    if (target.status !== 'PENDING') {
-      Alert.alert(
-        'Không thể huỷ đơn',
-        'Quán đã xác nhận và đang chế biến món ăn. Đơn hàng chỉ có thể huỷ khi còn ở trạng thái Chờ xác nhận (PENDING)!'
-      );
-      return false;
-    }
-
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === orderId
-          ? {
-              ...o,
-              status: 'CANCELLED',
-              paymentStatus: o.paymentStatus === 'PAID' ? 'REFUNDED' : o.paymentStatus,
-            }
-          : o
-      )
-    );
-
-    Alert.alert('Đã huỷ đơn hàng', `Đơn hàng #${orderId} đã được huỷ thành công!`);
-    return true;
-  };
-
-  // 8. Viết đánh giá (Chỉ đánh giá được khi DELIVERED, mỗi đơn 1 lần)
-  const submitReview = (orderId: string, rating: number, comment?: string): boolean => {
-    const target = orders.find((o) => o.id === orderId);
-    if (!target) return false;
-
-    if (target.status !== 'DELIVERED') {
-      Alert.alert('Chưa thể đánh giá', 'Bạn chỉ có thể đánh giá những đơn hàng đã giao thành công!');
-      return false;
-    }
-
-    if (target.reviewed) {
-      Alert.alert('Đã đánh giá', 'Mỗi đơn hàng chỉ được gửi đánh giá một lần duy nhất!');
-      return false;
-    }
-
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === orderId
-          ? {
-              ...o,
-              reviewed: true,
-              reviewRating: rating,
-              reviewComment: comment,
-            }
-          : o
-      )
-    );
-
-    Alert.alert('Cảm ơn bạn', 'Đánh giá của bạn đã được ghi nhận và gửi đến quán!');
-    return true;
-  };
-
-  return (
-    <AppContext.Provider
-      value={{
-        user,
-        setUser,
-        addresses,
-        defaultAddress,
-        setDefaultAddress,
-        cartRestaurantId,
-        cartRestaurantName,
-        cartItems,
-        cartCount,
-        foodTotal,
-        deliveryFee,
-        discount,
-        voucherCode,
-        totalAmount,
-        addToCart,
-        updateQuantity,
-        removeFromCart,
-        clearCart,
-        applyVoucher,
-        checkout,
-        orders,
-        cancelOrder,
-        submitReview,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+    },
+    [loadUserData]
   );
+
+  const register = useCallback(
+    async (input: { fullName: string; phone: string; password: string; email?: string }) => {
+      try {
+        await authApi.register({
+          full_name: input.fullName.trim(),
+          phone_number: input.phone.trim(),
+          password: input.password,
+          email: input.email?.trim() || undefined,
+        });
+        return true;
+      } catch (err) {
+        showApiError(err, 'Đăng ký thất bại');
+        return false;
+      }
+    },
+    []
+  );
+
+  const logout = useCallback(async () => {
+    await authApi.logout();
+    resetLocalState();
+  }, [resetLocalState]);
+
+  // ── Địa chỉ ───────────────────────────────────────────────────────────────
+  const setDefaultAddressFn = useCallback(async (id: number) => {
+    if (!hasSession()) return promptLogin();
+    try {
+      await addressApi.setDefault(id);
+      setAddresses((prev) =>
+        [...prev]
+          .map((a) => ({ ...a, isDefault: a.id === id }))
+          .sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || b.id - a.id)
+      );
+    } catch (err) {
+      showApiError(err, 'Không đặt được địa chỉ mặc định');
+    }
+  }, []);
+
+  const addAddress = useCallback(
+    async (input: NewAddressInput): Promise<Address | null> => {
+      if (!hasSession()) {
+        promptLogin();
+        return null;
+      }
+      try {
+        const created = await addressApi.create({
+          receiver_name: input.receiverName.trim(),
+          phone_number: input.phone.trim(),
+          address_detail: input.addressDetail.trim(),
+          ward: input.ward?.trim() || undefined,
+          district: input.district?.trim() || undefined,
+          city: input.city?.trim() || undefined,
+          is_default: input.isDefault ?? addresses.length === 0,
+        });
+        await refreshAddresses();
+        return mapAddress(created);
+      } catch (err) {
+        showApiError(err, 'Không thêm được địa chỉ');
+        return null;
+      }
+    },
+    [addresses.length, refreshAddresses]
+  );
+
+  // ── Giỏ hàng ──────────────────────────────────────────────────────────────
+  const addToCart = useCallback<AppContextType['addToCart']>(
+    async (food, restaurant) => {
+      if (!hasSession()) return promptLogin();
+
+      // Nghiệp vụ: quán đóng cửa thì không nhận đơn
+      if (restaurant.isOpen === false) {
+        Alert.alert(
+          'Quán hiện đóng cửa',
+          `Nhà hàng "${restaurant.name}" hiện đang tạm đóng cửa. Vui lòng quay lại sau!`
+        );
+        return;
+      }
+
+      const send = async (forceReplace: boolean) => {
+        const updated = await cartApi.addItem({
+          food_id: food.id,
+          quantity: 1,
+          force_replace: forceReplace,
+        });
+        setCart(updated);
+      };
+
+      try {
+        await send(false);
+        Alert.alert('Thành công', `Đã thêm "${food.name}" vào giỏ hàng!`);
+      } catch (err) {
+        // 409: giỏ đang có món của quán khác → hỏi người dùng có xoá giỏ cũ không
+        if (err instanceof ApiError && err.code === 'DIFFERENT_RESTAURANT') {
+          const currentName = cart?.restaurant?.name ?? 'quán khác';
+          Alert.alert(
+            'Tạo giỏ hàng mới?',
+            `Giỏ hàng của bạn đang có món của "${currentName}". Bạn có muốn xoá giỏ cũ để đặt từ "${restaurant.name}" không?`,
+            [
+              { text: 'Hủy', style: 'cancel' },
+              {
+                text: 'Tạo giỏ mới',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await send(true);
+                    Alert.alert(
+                      'Đã tạo giỏ mới',
+                      `Đã thêm "${food.name}" vào giỏ hàng của "${restaurant.name}"!`
+                    );
+                  } catch (e) {
+                    showApiError(e, 'Không thêm được món');
+                  }
+                },
+              },
+            ]
+          );
+          return;
+        }
+        showApiError(err, 'Không thêm được món vào giỏ');
+      }
+    },
+    [cart?.restaurant?.name]
+  );
+
+  /** Tìm cart_item id từ food_id (các màn hình đang làm việc theo foodId). */
+  const findCartItemId = useCallback(
+    (foodId: number) => cart?.items.find((it) => it.food_id === foodId)?.id,
+    [cart]
+  );
+
+  const updateQuantity = useCallback(
+    async (foodId: number, quantity: number) => {
+      if (!hasSession()) return promptLogin();
+      const itemId = findCartItemId(foodId);
+      if (!itemId) return;
+      try {
+        // Backend tự xoá món khi quantity <= 0
+        setCart(await cartApi.updateItem(itemId, { quantity }));
+      } catch (err) {
+        showApiError(err, 'Không cập nhật được số lượng');
+      }
+    },
+    [findCartItemId]
+  );
+
+  const removeFromCart = useCallback(
+    async (foodId: number) => {
+      if (!hasSession()) return promptLogin();
+      const itemId = findCartItemId(foodId);
+      if (!itemId) return;
+      try {
+        setCart(await cartApi.removeItem(itemId));
+      } catch (err) {
+        showApiError(err, 'Không xoá được món');
+      }
+    },
+    [findCartItemId]
+  );
+
+  const clearCart = useCallback(async () => {
+    if (!hasSession()) return;
+    try {
+      setCart(await cartApi.clear());
+    } catch (err) {
+      showApiError(err, 'Không xoá được giỏ hàng');
+    }
+  }, []);
+
+  // ── Đặt hàng ──────────────────────────────────────────────────────────────
+  const checkout = useCallback<AppContextType['checkout']>(
+    async (address, paymentMethod, note) => {
+      if (!hasSession()) {
+        promptLogin();
+        return null;
+      }
+      if (!address?.id) {
+        Alert.alert('Thiếu địa chỉ giao hàng', 'Vui lòng thêm hoặc chọn địa chỉ giao hàng.');
+        return null;
+      }
+      try {
+        const created = await orderApi.checkout({
+          address_id: address.id,
+          payment_method: paymentMethod,
+          note: note?.trim() || undefined,
+        });
+        // Backend đã xoá giỏ trong transaction → đồng bộ lại giỏ & danh sách đơn
+        await Promise.all([refreshCart(), refreshOrders()]);
+        return mapOrder(created, new Map());
+      } catch (err) {
+        showApiError(err, 'Đặt hàng thất bại');
+        return null;
+      }
+    },
+    [refreshCart, refreshOrders]
+  );
+
+  const cancelOrder = useCallback(
+    async (orderId: number) => {
+      try {
+        await orderApi.cancel(orderId);
+        await refreshOrders();
+        Alert.alert('Đã huỷ đơn hàng', `Đơn hàng #${orderId} đã được huỷ thành công!`);
+        return true;
+      } catch (err) {
+        showApiError(err, 'Không thể huỷ đơn');
+        return false;
+      }
+    },
+    [refreshOrders]
+  );
+
+  const submitReview = useCallback(
+    async (orderId: number, rating: number, comment?: string) => {
+      try {
+        await reviewApi.create({ order_id: orderId, rating, comment: comment?.trim() || undefined });
+        await refreshOrders();
+        Alert.alert('Cảm ơn bạn', 'Đánh giá của bạn đã được ghi nhận và gửi đến quán!');
+        return true;
+      } catch (err) {
+        showApiError(err, 'Không gửi được đánh giá');
+        return false;
+      }
+    },
+    [refreshOrders]
+  );
+
+  // ── Giá trị dẫn xuất ──────────────────────────────────────────────────────
+  const cartItems = useMemo(() => mapCartItems(cart), [cart]);
+  const cartCount = cart?.total_items ?? 0;
+  const foodTotal = cart?.food_total ?? 0;
+  // Nghiệp vụ Backend: phí ship cố định 15.000đ, chưa có voucher nên discount = 0
+  const deliveryFee = cartItems.length > 0 ? DELIVERY_FEE : 0;
+  const discount = 0;
+  const totalAmount = Math.max(0, foodTotal + deliveryFee - discount);
+
+  const defaultAddress = useMemo(
+    () => addresses.find((a) => a.isDefault) ?? addresses[0] ?? null,
+    [addresses]
+  );
+
+  const value: AppContextType = {
+    user,
+    isAuthenticated,
+    authLoading,
+    login,
+    register,
+    logout,
+
+    addresses,
+    defaultAddress,
+    addressesLoading,
+    refreshAddresses,
+    setDefaultAddress: setDefaultAddressFn,
+    addAddress,
+
+    cartRestaurantId: cart?.restaurant?.id ?? null,
+    cartRestaurantName: cart?.restaurant?.name ?? null,
+    cartRestaurantAddress: cart?.restaurant?.address ?? null,
+    cartItems,
+    cartCount,
+    foodTotal,
+    deliveryFee,
+    discount,
+    totalAmount,
+    cartLoading,
+    refreshCart,
+    addToCart,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+
+    orders,
+    ordersLoading,
+    refreshOrders,
+    checkout,
+    cancelOrder,
+    submitReview,
+  };
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 export const useApp = () => {

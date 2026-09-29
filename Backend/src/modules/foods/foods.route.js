@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getAll, getById, create, update, remove } from './foods.controller.js'
+import { getAll, getById, create, update, remove, getFeatured } from './foods.controller.js'
 import { authMiddleware } from '../../middleware/auth.middleware.js'
 
 const router = Router()
@@ -70,6 +70,24 @@ const router = Router()
  *                 type: string
  */
 router.get('/', getAll)
+
+/**
+ * @swagger
+ * /foods/featured:
+ *   get:
+ *     tags: [Foods]
+ *     summary: Món bán chạy (AVAILABLE, quán đang mở, sắp xếp theo số lượng đã bán)
+ *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Thành công
+ */
+router.get('/featured', getFeatured)
 router.post('/', authMiddleware, create)
 
 /**
