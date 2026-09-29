@@ -50,10 +50,10 @@ export class OwnerService {
   }
 
   /**
-   * Đặt trạng thái nhà hàng cụ thể: OPEN | CLOSED | BUSY
+   * Đặt trạng thái nhà hàng cụ thể: OPEN | CLOSED | TEMPORARILY_CLOSED
    */
   async setRestaurantStatus(restaurant, status) {
-    const validStatuses = ['OPEN', 'CLOSED', 'BUSY']
+    const validStatuses = ['OPEN', 'CLOSED', 'TEMPORARILY_CLOSED']
     if (!validStatuses.includes(status)) {
       const err = new Error(`Trạng thái không hợp lệ. Chỉ chấp nhận: ${validStatuses.join(', ')}`)
       err.status = 400
@@ -323,7 +323,7 @@ export class OwnerService {
       throw err
     }
 
-    food.status = food.status === 'AVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE'
+    food.status = food.status === 'AVAILABLE' ? 'OUT_OF_STOCK' : 'AVAILABLE'
     await food.save()
     return food
   }

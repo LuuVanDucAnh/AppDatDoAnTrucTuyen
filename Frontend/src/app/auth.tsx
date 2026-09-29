@@ -31,6 +31,12 @@ export default function AuthScreen() {
   const [saveSession, setSaveSession] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Chủ quán vào thẳng khu quản lý, khách vào trang chủ.
+  // (Màn Cài đặt của chủ quán có nút chuyển về giao diện khách.)
+  const goAfterLogin = (role: string) => {
+    router.replace(role === 'RESTAURANT_OWNER' ? '/owner/dashboard' : '/');
+  };
+
   // ── Đăng nhập: POST /users/login (Backend chỉ nhận email + password) ───────
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -43,10 +49,9 @@ export default function AuthScreen() {
     }
 
     setSubmitting(true);
-    const ok = await login(email, password);
+    const loggedIn = await login(email, password);
     setSubmitting(false);
-
-    if (ok) router.replace('/');
+    if (loggedIn) goAfterLogin(loggedIn.role);
   };
 
   // ── Đăng ký: POST /users rồi tự đăng nhập luôn ────────────────────────────
@@ -110,7 +115,8 @@ export default function AuthScreen() {
               </View>
               <Text style={styles.headerTitle}>Food</Text>
             </View>
-            <View style={{ width: 24 }} /> {/* Placeholder for balance */}
+            {/* Khoảng trống giữ cân đối với nút back bên trái */}
+            <View style={{ width: 24 }} />
           </View>
 
           {/* App Info Card */}

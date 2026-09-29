@@ -256,10 +256,10 @@ export class AdminService {
   }
 
   /**
-   * Thay đổi role người dùng: CUSTOMER | OWNER | ADMIN
+   * Thay đổi role người dùng: CUSTOMER | RESTAURANT_OWNER | ADMIN
    */
   async changeUserRole(userId, newRole) {
-    const validRoles = ['CUSTOMER', 'OWNER', 'ADMIN']
+    const validRoles = ['CUSTOMER', 'RESTAURANT_OWNER', 'ADMIN']
     if (!validRoles.includes(newRole)) {
       const err = new Error(`Role không hợp lệ. Chỉ chấp nhận: ${validRoles.join(', ')}`)
       err.status = 400
@@ -488,9 +488,9 @@ export class AdminService {
         err.status = 404
         throw err
       }
-      // Tự động nâng role lên OWNER nếu chưa là OWNER
-      if (owner.role !== 'OWNER' && owner.role !== 'ADMIN') {
-        owner.role = 'OWNER'
+      // Tự động nâng role lên RESTAURANT_OWNER nếu chưa phải
+      if (owner.role !== 'RESTAURANT_OWNER' && owner.role !== 'ADMIN') {
+        owner.role = 'RESTAURANT_OWNER'
         await owner.save()
       }
     }

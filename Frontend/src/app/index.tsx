@@ -929,7 +929,7 @@ export default function HomeScreen() {
           activeOpacity={0.7}
           onPress={() => {
             setActiveTab('account');
-            router.push('/auth');
+            router.push(isAuthenticated ? '/profile' : '/auth');
           }}
         >
           <Ionicons
@@ -1207,7 +1207,15 @@ export default function HomeScreen() {
               </View>
             ) : (
               filteredOrders.map((ord) => (
-                <View key={ord.id} style={styles.orderCard}>
+                <TouchableOpacity
+                  key={ord.id}
+                  style={styles.orderCard}
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    setShowOrdersModal(false);
+                    router.push({ pathname: '/order-tracking', params: { id: String(ord.id) } });
+                  }}
+                >
                   <View style={styles.orderCardHeader}>
                     <View>
                       <Text style={styles.orderCardId}>#{ord.id}</Text>
@@ -1298,7 +1306,7 @@ export default function HomeScreen() {
                       </View>
                     )}
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </ScrollView>

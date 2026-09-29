@@ -182,3 +182,40 @@ export interface ApiSearchResult {
   restaurants: { total: number; data: ApiRestaurant[] };
   foods: { total: number; data: ApiFood[] };
 }
+
+// ── CHỦ QUÁN (OWNER) ─────────────────────────────────────────────────────────
+
+/** Đơn hàng phía chủ quán: có thêm thông tin khách đặt */
+export interface ApiOwnerOrder extends ApiOrder {
+  user?: {
+    id: number;
+    full_name: string;
+    phone_number: string;
+    email: string | null;
+  };
+}
+
+export interface ApiOwnerDashboard {
+  today: { orders: number; revenue: number };
+  month: { orders: number; revenue: number };
+  pending_orders: number;
+  active_orders: number;
+  average_rating: number;
+  total_reviews: number;
+  total_foods: number;
+}
+
+export interface ApiRevenuePoint {
+  period: string;
+  order_count: number;
+  revenue: number;
+  food_total: number;
+}
+
+export interface ApiTopFood {
+  food_id: number;
+  food_name: string;
+  total_sold: number;
+  total_revenue: number;
+  order_count: number;
+}

@@ -106,7 +106,8 @@ interface AppContextType {
   isAuthenticated: boolean;
   /** true khi app đang đọc token đã lưu lúc khởi động */
   authLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  /** Trả về user vừa đăng nhập (để màn auth điều hướng theo role), null nếu thất bại. */
+  login: (email: string, password: string) => Promise<User | null>;
   register: (input: {
     fullName: string;
     phone: string;
@@ -385,14 +386,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string) => {
       try {
         const apiUser = await authApi.login(email.trim(), password);
-        setUser(mapUser(apiUser));
+        const mapped = mapUser(apiUser);
+        setUser(mapped);
         setAuthLoading(false);
         // Token đã có → tải giỏ hàng, địa chỉ, đơn hàng của user vừa đăng nhập
         await loadUserData();
-        return true;
+        return mapped;
       } catch (err) {
         showApiError(err, 'Đăng nhập thất bại');
-        return false;
+        return null;
       }
     },
     [loadUserData]

@@ -3,6 +3,11 @@ import { clearTokens, loadTokens, saveTokens } from './storage';
 import type {
   ApiAddress,
   ApiCart,
+  ApiCategory,
+  ApiOwnerDashboard,
+  ApiOwnerOrder,
+  ApiRevenuePoint,
+  ApiTopFood,
   ApiEnvelope,
   ApiFood,
   ApiOrder,
@@ -405,6 +410,151 @@ export const reviewApi = {
     const { data } = await request<ApiReview>('/profile/reviews', {
       method: 'POST',
       body: input,
+      auth: true,
+    });
+    return data;
+  },
+};
+
+// ── CHỦ QUÁN (OWNER) ─────────────────────────────────────────────────────────
+// Mọi route đều yêu cầu đăng nhập bằng tài khoản role RESTAURANT_OWNER
+// và chỉ thao tác được trên nhà hàng do chính mình sở hữu.
+export const ownerApi = {
+  /** GET /owner/my-restaurants */
+  async getMyRestaurants() {
+    const { data } = await request<ApiRestaurant[]>('/owner/my-restaurants', { auth: true });
+    return data;
+  },
+
+  /** PATCH /owner/restaurants/:id/toggle-status — OPEN ↔ CLOSED */
+  async toggleRestaurantStatus(restaurantId: number) {
+    const { data } = await request<ApiRestaurant>(
+      `/owner/restaurants/${restaurantId}/toggle-status`,
+      { method: 'PATCH', auth: true }
+    );
+    return data;
+  },
+
+  // ── Đơn hàng ──────────────────────────────────────────────────────────────
+  /** GET /owner/restaurants/:id/orders?status= */
+  async getOrders(restaurantId: number, params: { status?: OrderStatus; limit?: number } = {}) {
+    const { data, meta } = await request<ApiOwnerOrder[]>(
+      `/owner/restaurants/${restaurantId}/orders`,
+      { query: { status: params.status, limit: params.limit ?? 50 }, auth: true }
+    );
+    return { data, meta };
+  },
+
+  /**
+   * PATCH /owner/restaurants/:id/orders/:orderId/status
+   * Backend chỉ cho phép chuyển đúng luồng:
+   *   PENDING → CONFIRMED | CANCELLED
+   *   CONFIRMED → PREPARING | CANCELLED
+   *   PREPARING → DELIVERING
+   *   DELIVERING → DELIVERED
+   */
+  async updateOrderStatus(restaurantId: number, orderId: number, status: OrderStatus) {
+    const { data } = await request<ApiOwnerOrder>(
+      `/owner/restaurants/${restaurantId}/orders/${orderId}/status`,
+      { method: 'PATCH', body: { status }, auth: true }
+    );
+    return data;
+  },
+
+  // ── Thực đơn ──────────────────────────────────────────────────────────────
+  /** GET /owner/restaurants/:id/foods — khác API khách: trả cả món OUT_OF_STOCK */
+  async getFoods(restaurantId: number, params: { status?: string; category_id?: number } = {}) {
+    const { data, meta } = await request<ApiFood[]>(`/owner/restaurants/${restaurantId}/foods`, {
+      query: { status: params.status, category_id: params.category_id, limit: 200 },
+      auth: true,
+    });
+    return { data, meta };
+  },
+
+  /** PATCH /owner/restaurants/:id/foods/:foodId/toggle-status — AVAILABLE ↔ OUT_OF_STOCK */
+  async toggleFoodStatus(restaurantId: number, foodId: number) {
+    const { data } = await request<ApiFood>(
+      `/owner/restaurants/${restaurantId}/foods/${foodId}/toggle-status`,
+      { method: 'PATCH', auth: true }
+    );
+    return data;
+  },
+
+  /** POST /owner/restaurants/:id/foods */
+  async createFood(
+    restaurantId: number,
+    input: { category_id: number; name: string; price: number; description?: string; image?: string }
+  ) {
+    const { data } = await request<ApiFood>(`/owner/restaurants/${restaurantId}/foods`, {
+      method: 'POST',
+      body: input,
+      auth: true,
+    });
+    return data;
+  },
+
+  /** DELETE /owner/restaurants/:id/foods/:foodId */
+  async deleteFood(restaurantId: number, foodId: number) {
+    await request<null>(`/owner/restaurants/${restaurantId}/foods/${foodId}`, {
+      method: 'DELETE',
+      auth: true,
+    });
+  },
+
+  // ── Danh mục ──────────────────────────────────────────────────────────────
+  /** GET /owner/restaurants/:id/categories */
+  async getCategories(restaurantId: number) {
+    const { data } = await request<ApiCategory[]>(
+      `/owner/restaurants/${restaurantId}/categories`,
+      { auth: true }
+    );
+    return data;
+  },
+
+  /** POST /owner/restaurants/:id/categories */
+  async createCategory(restaurantId: number, input: { name: string; description?: string }) {
+    const { data } = await request<ApiCategory>(`/owner/restaurants/${restaurantId}/categories`, {
+      method: 'POST',
+      body: input,
+      auth: true,
+    });
+    return data;
+  },
+
+  // ── Thống kê ──────────────────────────────────────────────────────────────
+  /** GET /owner/restaurants/:id/dashboard */
+  async getDashboard(restaurantId: number) {
+    const { data } = await request<ApiOwnerDashboard>(
+      `/owner/restaurants/${restaurantId}/dashboard`,
+      { auth: true }
+    );
+    return data;
+  },
+
+  /** GET /owner/restaurants/:id/stats/revenue?groupBy=day|month|year */
+  async getRevenueStats(
+    restaurantId: number,
+    params: { from?: string; to?: string; groupBy?: 'day' | 'month' | 'year' } = {}
+  ) {
+    const { data } = await request<ApiRevenuePoint[]>(
+      `/owner/restaurants/${restaurantId}/stats/revenue`,
+      { query: { ...params, groupBy: params.groupBy ?? 'day' }, auth: true }
+    );
+    return data;
+  },
+
+  /** GET /owner/restaurants/:id/stats/top-foods */
+  async getTopFoods(restaurantId: number, limit = 5) {
+    const { data } = await request<ApiTopFood[]>(
+      `/owner/restaurants/${restaurantId}/stats/top-foods`,
+      { query: { limit }, auth: true }
+    );
+    return data;
+  },
+
+  /** GET /owner/restaurants/:id/reviews */
+  async getReviews(restaurantId: number) {
+    const { data } = await request<ApiReview[]>(`/owner/restaurants/${restaurantId}/reviews`, {
       auth: true,
     });
     return data;
