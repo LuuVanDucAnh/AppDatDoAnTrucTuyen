@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import adminRouter from '../modules/admin/admin.route.js'
 import addressesRouter from '../modules/addresses/addresses.route.js'
 import cartItemsRouter from '../modules/cart_items/cart_items.route.js'
 import cartsRouter from '../modules/carts/carts.route.js'
@@ -14,6 +15,7 @@ import usersRouter from '../modules/users/users.route.js'
 
 const router = Router()
 
+router.use('/admin', adminRouter)
 router.use('/addresses', addressesRouter)
 router.use('/cart_items', cartItemsRouter)
 router.use('/carts', cartsRouter)
