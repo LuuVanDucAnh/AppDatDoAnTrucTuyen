@@ -1,3 +1,11 @@
+-- =====================================================
+-- DATABASE: DatDoAn
+-- Hệ thống đặt và giao đồ ăn trực tuyến
+-- Mật khẩu test cho tất cả user: 123456
+-- Mật khẩu được lưu dưới dạng BCrypt
+-- Địa điểm mẫu: Hà Nội và Hưng Yên
+-- =====================================================
+
 DROP DATABASE IF EXISTS DatDoAn;
 
 CREATE DATABASE DatDoAn
@@ -11,314 +19,674 @@ USE DatDoAn;
 -- 1. USERS
 -- =====================================================
 
--- =====================================================================
--- 1. USERS — 5 dòng (2 khách, 2 chủ quán, 1 admin)
--- =====================================================================
-INSERT INTO users (full_name, email, phone_number, password, role, status) VALUES
-('Nguyễn Văn An',   'nguyenvanan@gmail.com', '0901000001', '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO', 'CUSTOMER',         TRUE),
-('Trần Thị Lan',    'tranthilan@gmail.com',  '0901000002', '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO', 'CUSTOMER',         TRUE),
-('Lê Minh Tuấn',    'leminhtuan@gmail.com',  '0901000003', '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO', 'RESTAURANT_OWNER', TRUE),
-('Phạm Văn Hùng',   'phamvanhung@gmail.com', '0901000004', '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO', 'RESTAURANT_OWNER', TRUE),
-('Admin Hệ Thống',  'quantri@datdoan.vn',    '0901000005', '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO', 'ADMIN',            TRUE);
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    phone_number VARCHAR(15) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+
+    role ENUM(
+        'CUSTOMER',
+        'RESTAURANT_OWNER',
+        'ADMIN'
+    ) DEFAULT 'CUSTOMER',
+
+    status BOOLEAN DEFAULT TRUE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL
+);
 
 
--- =====================================================================
--- 2. ADDRESSES — 5 dòng (An: 3 địa chỉ, Lan: 2 địa chỉ)
---    Mỗi user chỉ có đúng 1 địa chỉ is_default = TRUE
--- =====================================================================
+-- =====================================================
+-- 2. ADDRESSES
+-- =====================================================
+
+CREATE TABLE addresses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    user_id INT NOT NULL,
+
+    receiver_name VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(15) NOT NULL,
+    address_detail VARCHAR(255) NOT NULL,
+    ward VARCHAR(100),
+    district VARCHAR(100),
+    city VARCHAR(100),
+
+    is_default BOOLEAN DEFAULT FALSE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+
+    CONSTRAINT fk_addresses_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+
+-- =====================================================
+-- 3. RESTAURANTS
+-- =====================================================
+
+CREATE TABLE restaurants (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    owner_id INT,
+
+    name VARCHAR(150) NOT NULL,
+    description TEXT,
+    address VARCHAR(255) NOT NULL,
+    phone_number VARCHAR(15),
+    image VARCHAR(255),
+
+    opening_time TIME,
+    closing_time TIME,
+
+    -- Khớp nghiệp vụ:
+    -- OPEN      : đang mở
+    -- CLOSED    : đóng cửa
+    -- BUSY      : đang bận
+    -- SUSPENDED : bị Admin đình chỉ
+    status ENUM(
+        'OPEN',
+        'CLOSED',
+        'BUSY',
+        'SUSPENDED'
+    ) DEFAULT 'OPEN',
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+
+    CONSTRAINT fk_restaurants_owner
+        FOREIGN KEY (owner_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL
+);
+
+
+-- =====================================================
+-- 4. CATEGORIES
+-- =====================================================
+
+CREATE TABLE categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    restaurant_id INT NOT NULL,
+
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(255),
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+
+    CONSTRAINT fk_categories_restaurant
+        FOREIGN KEY (restaurant_id)
+        REFERENCES restaurants(id)
+        ON DELETE CASCADE
+);
+
+
+-- =====================================================
+-- 5. FOODS
+-- =====================================================
+
+CREATE TABLE foods (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    category_id INT NOT NULL,
+
+    name VARCHAR(150) NOT NULL,
+    description TEXT,
+    price DECIMAL(12,2) NOT NULL,
+    image VARCHAR(255),
+
+    -- Khớp nghiệp vụ:
+    -- AVAILABLE   : còn món
+    -- UNAVAILABLE : hết món / tạm ngừng bán
+    status ENUM(
+        'AVAILABLE',
+        'UNAVAILABLE'
+    ) DEFAULT 'AVAILABLE',
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+
+    CONSTRAINT fk_foods_category
+        FOREIGN KEY (category_id)
+        REFERENCES categories(id)
+        ON DELETE CASCADE,
+
+    CHECK (price >= 0)
+);
+
+
+-- =====================================================
+-- 6. CARTS
+-- =====================================================
+
+CREATE TABLE carts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    user_id INT NOT NULL UNIQUE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+
+    CONSTRAINT fk_carts_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+
+-- =====================================================
+-- 7. CART ITEMS
+-- =====================================================
+
+CREATE TABLE cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    cart_id INT NOT NULL,
+    food_id INT NOT NULL,
+
+    quantity INT NOT NULL DEFAULT 1,
+    note VARCHAR(255),
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+
+    CONSTRAINT fk_cart_items_cart
+        FOREIGN KEY (cart_id)
+        REFERENCES carts(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_cart_items_food
+        FOREIGN KEY (food_id)
+        REFERENCES foods(id)
+        ON DELETE CASCADE,
+
+    UNIQUE (cart_id, food_id),
+
+    CHECK (quantity > 0)
+);
+
+
+-- =====================================================
+-- 8. ORDERS
+-- =====================================================
+
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    user_id INT NOT NULL,
+    restaurant_id INT NOT NULL,
+    address_id INT NOT NULL,
+
+    food_total DECIMAL(12,2) NOT NULL DEFAULT 0,
+    delivery_fee DECIMAL(12,2) NOT NULL DEFAULT 0,
+    discount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+
+    note VARCHAR(255),
+
+    status ENUM(
+        'PENDING',
+        'CONFIRMED',
+        'PREPARING',
+        'DELIVERING',
+        'DELIVERED',
+        'CANCELLED'
+    ) DEFAULT 'PENDING',
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+
+    CONSTRAINT fk_orders_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id),
+
+    CONSTRAINT fk_orders_restaurant
+        FOREIGN KEY (restaurant_id)
+        REFERENCES restaurants(id),
+
+    CONSTRAINT fk_orders_address
+        FOREIGN KEY (address_id)
+        REFERENCES addresses(id)
+);
+
+
+-- =====================================================
+-- 9. ORDER ITEMS
+-- =====================================================
+
+CREATE TABLE order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    order_id INT NOT NULL,
+    food_id INT NOT NULL,
+
+    food_name VARCHAR(150) NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(12,2) NOT NULL,
+    subtotal DECIMAL(12,2) NOT NULL,
+
+    note VARCHAR(255),
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_order_items_order
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_order_items_food
+        FOREIGN KEY (food_id)
+        REFERENCES foods(id),
+
+    CHECK (quantity > 0),
+    CHECK (unit_price >= 0),
+    CHECK (subtotal >= 0)
+);
+
+
+-- =====================================================
+-- 10. PAYMENTS
+-- =====================================================
+
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    order_id INT NOT NULL,
+
+    payment_method ENUM(
+        'CASH',
+        'BANK_TRANSFER',
+        'MOMO',
+        'VNPAY'
+    ) DEFAULT 'CASH',
+
+    amount DECIMAL(12,2) NOT NULL,
+
+    status ENUM(
+        'UNPAID',
+        'PAID',
+        'FAILED',
+        'REFUNDED'
+    ) DEFAULT 'UNPAID',
+
+    transaction_code VARCHAR(100),
+    payment_date DATETIME,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_payments_order
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON DELETE CASCADE,
+
+    CHECK (amount >= 0)
+);
+
+
+-- =====================================================
+-- 11. REVIEWS
+-- =====================================================
+
+CREATE TABLE reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    user_id INT NOT NULL,
+    restaurant_id INT NOT NULL,
+    order_id INT NOT NULL,
+
+    rating INT NOT NULL,
+    comment TEXT,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+
+    CONSTRAINT fk_reviews_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id),
+
+    CONSTRAINT fk_reviews_restaurant
+        FOREIGN KEY (restaurant_id)
+        REFERENCES restaurants(id),
+
+    CONSTRAINT fk_reviews_order
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON DELETE CASCADE,
+
+    CHECK (rating BETWEEN 1 AND 5),
+
+    UNIQUE (user_id, order_id)
+);
+
+
+-- =====================================================
+-- DỮ LIỆU MẪU
+-- Mật khẩu đăng nhập của tất cả tài khoản: 123456
+-- =====================================================
+
+
+-- =====================================================
+-- 1. USERS - 5 DỮ LIỆU
+-- =====================================================
+
+INSERT INTO users
+(full_name, email, phone_number, password, role, status)
+VALUES
+('Nguyễn Văn An',
+ 'nguyenvanan@gmail.com',
+ '0901000001',
+ '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO',
+ 'CUSTOMER',
+ TRUE),
+
+('Trần Thị Lan',
+ 'tranthilan@gmail.com',
+ '0901000002',
+ '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO',
+ 'CUSTOMER',
+ TRUE),
+
+('Lê Minh Tuấn',
+ 'leminhtuan@gmail.com',
+ '0901000003',
+ '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO',
+ 'RESTAURANT_OWNER',
+ TRUE),
+
+('Phạm Văn Hùng',
+ 'phamvanhung@gmail.com',
+ '0901000004',
+ '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO',
+ 'RESTAURANT_OWNER',
+ TRUE),
+
+('Admin Hệ Thống',
+ 'admin@datdoan.vn',
+ '0901000005',
+ '$2b$10$sjGY6zwdmbHaWB3RGjTlrO1Rr0pImJJzUkoOiI9pPPMoai5hKmIZO',
+ 'ADMIN',
+ TRUE);
+
+
+-- =====================================================
+-- 2. ADDRESSES - 5 DỮ LIỆU
+-- =====================================================
+
 INSERT INTO addresses
-(user_id, receiver_name, phone_number, address_detail, ward, district, city, is_default) VALUES
-((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com'),
- 'Nguyễn Văn An', '0901000001', 'Số 25 đường Nguyễn Trãi',
+(user_id, receiver_name, phone_number, address_detail,
+ ward, district, city, is_default)
+VALUES
+(1, 'Nguyễn Văn An', '0901000001',
+ 'Số 25 đường Nguyễn Trãi',
  'Thanh Xuân Trung', 'Thanh Xuân', 'Hà Nội', TRUE),
 
-((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com'),
- 'Nguyễn Văn An', '0901000001', 'Số 18 đường Lê Lợi',
+(1, 'Nguyễn Văn An', '0901000001',
+ 'Số 18 đường Lê Lợi',
  'Lê Lợi', 'Thành phố Hưng Yên', 'Hưng Yên', FALSE),
 
-((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com'),
- 'Nguyễn Văn An', '0901000001', 'Số 50 đường Trần Phú',
- 'Lam Sơn', 'Thành phố Hưng Yên', 'Hưng Yên', FALSE),
-
-((SELECT id FROM users WHERE email = 'tranthilan@gmail.com'),
- 'Trần Thị Lan', '0901000002', 'Số 36 đường Cầu Giấy',
+(2, 'Trần Thị Lan', '0901000002',
+ 'Số 36 đường Cầu Giấy',
  'Dịch Vọng', 'Cầu Giấy', 'Hà Nội', TRUE),
 
-((SELECT id FROM users WHERE email = 'tranthilan@gmail.com'),
- 'Trần Thị Lan', '0901000002', 'Số 12 đường Nguyễn Thiện Thuật',
- 'Lê Lợi', 'Thành phố Hưng Yên', 'Hưng Yên', FALSE);
+(2, 'Trần Thị Lan', '0901000002',
+ 'Số 12 đường Nguyễn Thiện Thuật',
+ 'Lê Lợi', 'Thành phố Hưng Yên', 'Hưng Yên', FALSE),
+
+(1, 'Nguyễn Văn An', '0901000001',
+ 'Số 50 đường Trần Phú',
+ 'Lam Sơn', 'Thành phố Hưng Yên', 'Hưng Yên', FALSE);
 
 
--- =====================================================================
--- 3. RESTAURANTS — 5 dòng (4 quán OPEN + 1 quán CLOSED)
---    image dùng URL đầy đủ nên ảnh tải trực tiếp từ internet,
---    KHÔNG cần thư mục Backend/uploads/
--- =====================================================================
+-- =====================================================
+-- 3. RESTAURANTS - 5 DỮ LIỆU
+-- =====================================================
+
 INSERT INTO restaurants
-(owner_id, name, description, address, phone_number, image, opening_time, closing_time, status) VALUES
-((SELECT id FROM users WHERE email = 'leminhtuan@gmail.com'),
- 'Nhà Hàng Phố Việt', 'Phở bò, bún chả và các món ăn Việt Nam',
- '25 Nguyễn Trãi, Thanh Xuân, Hà Nội', '0912000001',
- 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=80',
+(owner_id, name, description, address, phone_number,
+ image, opening_time, closing_time, status)
+VALUES
+(3,
+ 'Nhà Hàng Phố Việt',
+ 'Nhà hàng chuyên các món ăn Việt Nam',
+ '25 Nguyễn Trãi, Thanh Xuân, Hà Nội',
+ '0912000001',
+ 'pho-viet.jpg',
  '08:00:00', '22:00:00', 'OPEN'),
 
-((SELECT id FROM users WHERE email = 'leminhtuan@gmail.com'),
- 'Cơm Nhà Hà Nội', 'Các món cơm gia đình truyền thống',
- '36 Cầu Giấy, Dịch Vọng, Cầu Giấy, Hà Nội', '0912000002',
- 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
+(3,
+ 'Cơm Nhà Hà Nội',
+ 'Các món cơm gia đình truyền thống',
+ '36 Cầu Giấy, Dịch Vọng, Cầu Giấy, Hà Nội',
+ '0912000002',
+ 'com-nha-ha-noi.jpg',
  '09:00:00', '21:30:00', 'OPEN'),
 
-((SELECT id FROM users WHERE email = 'phamvanhung@gmail.com'),
- 'Bếp Việt Hưng Yên', 'Nhà hàng phục vụ món Việt và món gia đình',
- '18 Lê Lợi, Lê Lợi, TP Hưng Yên, Hưng Yên', '0912000003',
- 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80',
+(4,
+ 'Bếp Việt Hưng Yên',
+ 'Nhà hàng phục vụ món Việt và món gia đình',
+ '18 Lê Lợi, Lê Lợi, TP Hưng Yên, Hưng Yên',
+ '0912000003',
+ 'bep-viet-hung-yen.jpg',
  '08:00:00', '22:00:00', 'OPEN'),
 
-((SELECT id FROM users WHERE email = 'phamvanhung@gmail.com'),
- 'Quán Ngon Phố Nhãn', 'Các món ăn bình dân và đồ uống',
- '50 Trần Phú, Lam Sơn, TP Hưng Yên, Hưng Yên', '0912000004',
- 'https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?w=800&auto=format&fit=crop&q=80',
+(4,
+ 'Quán Ngon Phố Nhãn',
+ 'Các món ăn bình dân và đồ uống',
+ '50 Trần Phú, Lam Sơn, TP Hưng Yên, Hưng Yên',
+ '0912000004',
+ 'quan-ngon-pho-nhan.jpg',
  '10:00:00', '22:00:00', 'OPEN'),
 
--- Quán này CLOSED: dùng để kiểm tra API /restaurants/active và /search
--- chỉ trả về quán đang mở (app sẽ hiện 4 quán, không hiện quán này)
-((SELECT id FROM users WHERE email = 'leminhtuan@gmail.com'),
- 'Góc Ăn Vặt Hà Nội', 'Đồ ăn nhanh, ăn vặt và đồ uống',
- '72 Hồ Tùng Mậu, Mai Dịch, Cầu Giấy, Hà Nội', '0912000005',
- 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
- '10:00:00', '23:00:00', 'CLOSED');
+(3,
+ 'Góc Ăn Vặt Hà Nội',
+ 'Đồ ăn nhanh, ăn vặt và đồ uống',
+ '72 Hồ Tùng Mậu, Mai Dịch, Cầu Giấy, Hà Nội',
+ '0912000005',
+ 'goc-an-vat.jpg',
+ '10:00:00', '23:00:00', 'OPEN');
 
 
--- =====================================================================
--- 4. CATEGORIES — 5 dòng (mỗi quán 1 danh mục)
--- =====================================================================
-INSERT INTO categories (restaurant_id, name, description) VALUES
-((SELECT id FROM restaurants WHERE name = 'Nhà Hàng Phố Việt'),  'Món chính',        'Các món ăn chính'),
-((SELECT id FROM restaurants WHERE name = 'Cơm Nhà Hà Nội'),     'Cơm gia đình',     'Các món cơm truyền thống'),
-((SELECT id FROM restaurants WHERE name = 'Bếp Việt Hưng Yên'),  'Món Việt',         'Các món ăn Việt Nam'),
-((SELECT id FROM restaurants WHERE name = 'Quán Ngon Phố Nhãn'), 'Đồ ăn bình dân',   'Các món ăn phục vụ hàng ngày'),
-((SELECT id FROM restaurants WHERE name = 'Góc Ăn Vặt Hà Nội'),  'Đồ ăn vặt',        'Các món ăn nhanh và ăn vặt');
+-- =====================================================
+-- 4. CATEGORIES - 5 DỮ LIỆU
+-- =====================================================
+
+INSERT INTO categories
+(restaurant_id, name, description)
+VALUES
+(1, 'Món chính', 'Các món ăn chính'),
+(2, 'Cơm gia đình', 'Các món cơm truyền thống'),
+(3, 'Món Việt', 'Các món ăn Việt Nam'),
+(4, 'Đồ ăn bình dân', 'Các món ăn phục vụ hàng ngày'),
+(5, 'Đồ ăn vặt', 'Các món ăn nhanh và ăn vặt');
 
 
--- =====================================================================
--- 5. FOODS — 5 dòng
---    Quán "Nhà Hàng Phố Việt" có 2 món để test được giỏ hàng nhiều món
---    cùng một quán (tính food_total nhiều dòng, sửa số lượng từng món).
--- =====================================================================
-INSERT INTO foods (category_id, name, description, price, image, status) VALUES
-((SELECT c.id FROM categories c JOIN restaurants r ON r.id = c.restaurant_id
-  WHERE r.name = 'Nhà Hàng Phố Việt' AND c.name = 'Món chính'),
- 'Phở bò đặc biệt', 'Phở bò truyền thống với thịt bò và nước dùng đậm đà',
- 55000, 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800&auto=format&fit=crop&q=80', 'AVAILABLE'),
+-- =====================================================
+-- 5. FOODS - 5 DỮ LIỆU
+-- =====================================================
 
-((SELECT c.id FROM categories c JOIN restaurants r ON r.id = c.restaurant_id
-  WHERE r.name = 'Nhà Hàng Phố Việt' AND c.name = 'Món chính'),
- 'Bún chả Hà Nội', 'Bún chả với thịt nướng than hoa và nước chấm chua ngọt',
- 50000, 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80', 'AVAILABLE'),
+INSERT INTO foods
+(category_id, name, description, price, image, status)
+VALUES
+(1,
+ 'Phở bò đặc biệt',
+ 'Phở bò truyền thống với thịt bò và nước dùng đậm đà',
+ 55000, 'pho-bo.jpg', 'AVAILABLE'),
 
-((SELECT c.id FROM categories c JOIN restaurants r ON r.id = c.restaurant_id
-  WHERE r.name = 'Cơm Nhà Hà Nội' AND c.name = 'Cơm gia đình'),
- 'Cơm gà chiên mắm', 'Cơm trắng ăn kèm gà chiên nước mắm',
- 60000, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80', 'AVAILABLE'),
+(2,
+ 'Cơm gà chiên mắm',
+ 'Cơm trắng ăn kèm gà chiên nước mắm',
+ 60000, 'com-ga.jpg', 'AVAILABLE'),
 
-((SELECT c.id FROM categories c JOIN restaurants r ON r.id = c.restaurant_id
-  WHERE r.name = 'Bếp Việt Hưng Yên' AND c.name = 'Món Việt'),
- 'Bánh đa cua', 'Bánh đa cua truyền thống, nước dùng gạch cua',
- 45000, 'https://images.unsplash.com/photo-1547592180-85f173990554?w=800&auto=format&fit=crop&q=80', 'AVAILABLE'),
+(3,
+ 'Bún chả Hưng Yên',
+ 'Bún chả với thịt nướng và nước chấm',
+ 50000, 'bun-cha.jpg', 'AVAILABLE'),
 
-((SELECT c.id FROM categories c JOIN restaurants r ON r.id = c.restaurant_id
-  WHERE r.name = 'Quán Ngon Phố Nhãn' AND c.name = 'Đồ ăn bình dân'),
- 'Khoai tây chiên', 'Khoai tây chiên giòn, ăn kèm sốt',
- 30000, 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800&auto=format&fit=crop&q=80', 'AVAILABLE');
+(4,
+ 'Bánh đa cua',
+ 'Bánh đa cua truyền thống',
+ 45000, 'banh-da-cua.jpg', 'AVAILABLE'),
 
-
--- =====================================================================
--- 6. CARTS — 5 dòng (1 giỏ / 1 user, cột user_id là UNIQUE)
--- =====================================================================
-INSERT INTO carts (user_id) VALUES
-((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com')),
-((SELECT id FROM users WHERE email = 'tranthilan@gmail.com')),
-((SELECT id FROM users WHERE email = 'leminhtuan@gmail.com')),
-((SELECT id FROM users WHERE email = 'phamvanhung@gmail.com')),
-((SELECT id FROM users WHERE email = 'quantri@datdoan.vn'));
+(5,
+ 'Khoai tây chiên',
+ 'Khoai tây chiên giòn',
+ 30000, 'khoai-tay.jpg', 'AVAILABLE');
 
 
--- =====================================================================
--- 7. CART_ITEMS — 5 dòng
---    Giỏ của An có 2 món CÙNG quán "Nhà Hàng Phố Việt" (đúng nghiệp vụ
---    1 giỏ = 1 nhà hàng). 2 dòng cuối chỉ để đủ 5 dòng theo yêu cầu.
--- =====================================================================
-INSERT INTO cart_items (cart_id, food_id, quantity, note) VALUES
-((SELECT k.id FROM carts k JOIN users u ON u.id = k.user_id WHERE u.email = 'nguyenvanan@gmail.com'),
- (SELECT id FROM foods WHERE name = 'Phở bò đặc biệt'),  2, 'Ít hành'),
+-- =====================================================
+-- 6. CARTS - 5 DỮ LIỆU
+-- =====================================================
 
-((SELECT k.id FROM carts k JOIN users u ON u.id = k.user_id WHERE u.email = 'nguyenvanan@gmail.com'),
- (SELECT id FROM foods WHERE name = 'Bún chả Hà Nội'),   1, 'Thêm rau sống'),
-
-((SELECT k.id FROM carts k JOIN users u ON u.id = k.user_id WHERE u.email = 'tranthilan@gmail.com'),
- (SELECT id FROM foods WHERE name = 'Cơm gà chiên mắm'), 1, 'Không cay'),
-
-((SELECT k.id FROM carts k JOIN users u ON u.id = k.user_id WHERE u.email = 'leminhtuan@gmail.com'),
- (SELECT id FROM foods WHERE name = 'Bánh đa cua'),      1, NULL),
-
-((SELECT k.id FROM carts k JOIN users u ON u.id = k.user_id WHERE u.email = 'phamvanhung@gmail.com'),
- (SELECT id FROM foods WHERE name = 'Khoai tây chiên'),  2, 'Chiên giòn');
+INSERT INTO carts (user_id)
+VALUES
+(1),
+(2),
+(3),
+(4),
+(5);
 
 
--- =====================================================================
--- 8. ORDERS — 5 dòng, MỖI TRẠNG THÁI MỘT KIỂU để test đủ nghiệp vụ:
---      PENDING    → test nút "Huỷ đơn" (chỉ huỷ được khi PENDING)
---      DELIVERING → test tab "Đang xử lý"
---      DELIVERED  → 2 đơn: 1 đơn đã đánh giá, 1 đơn CHƯA đánh giá
---      CANCELLED  → test tab "Đã hủy" + payment REFUNDED
---    total_amount = food_total + delivery_fee(15.000) - discount(0)
---    Cột note được dùng làm khoá tra cứu cho 3 bảng bên dưới.
--- =====================================================================
+-- =====================================================
+-- 7. CART_ITEMS - 5 DỮ LIỆU
+-- =====================================================
+
+INSERT INTO cart_items
+(cart_id, food_id, quantity, note)
+VALUES
+(1, 1, 2, 'Ít hành'),
+(2, 2, 1, 'Không cay'),
+(3, 3, 2, 'Thêm rau'),
+(4, 4, 1, NULL),
+(5, 5, 2, 'Chiên giòn');
+
+
+-- =====================================================
+-- 8. ORDERS - 5 DỮ LIỆU
+-- Tất cả đều DELIVERED để có thể test đánh giá
+-- =====================================================
+
 INSERT INTO orders
-(user_id, restaurant_id, address_id, food_total, delivery_fee, discount, total_amount, note, status, created_at) VALUES
--- Đơn 1: PENDING — 2 x Cơm gà chiên mắm (60.000)
-((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com'),
- (SELECT id FROM restaurants WHERE name = 'Cơm Nhà Hà Nội'),
- (SELECT id FROM addresses WHERE address_detail = 'Số 25 đường Nguyễn Trãi'),
- 120000, 15000, 0, 135000, 'Giao giờ nghỉ trưa', 'PENDING', NOW()),
+(user_id, restaurant_id, address_id,
+ food_total, delivery_fee, discount, total_amount,
+ note, status)
+VALUES
+(1, 1, 1,
+ 110000, 15000, 0, 125000,
+ 'Giao giờ nghỉ trưa', 'DELIVERED'),
 
--- Đơn 2: DELIVERING — 2 x Khoai tây chiên (30.000)
-((SELECT id FROM users WHERE email = 'tranthilan@gmail.com'),
- (SELECT id FROM restaurants WHERE name = 'Quán Ngon Phố Nhãn'),
- (SELECT id FROM addresses WHERE address_detail = 'Số 36 đường Cầu Giấy'),
- 60000, 15000, 0, 75000, 'Gọi trước khi giao 5 phút', 'DELIVERING', DATE_SUB(NOW(), INTERVAL 1 HOUR)),
+(2, 2, 3,
+ 60000, 15000, 0, 75000,
+ 'Gọi trước khi giao', 'DELIVERED'),
 
--- Đơn 3: DELIVERED + ĐÃ đánh giá — 2 x Phở bò đặc biệt (55.000)
-((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com'),
- (SELECT id FROM restaurants WHERE name = 'Nhà Hàng Phố Việt'),
- (SELECT id FROM addresses WHERE address_detail = 'Số 18 đường Lê Lợi'),
- 110000, 15000, 0, 125000, 'Đơn đã giao và đã đánh giá', 'DELIVERED', DATE_SUB(NOW(), INTERVAL 3 DAY)),
+(1, 3, 2,
+ 100000, 15000, 0, 115000,
+ 'Thêm rau', 'DELIVERED'),
 
--- Đơn 4: DELIVERED + ĐÃ đánh giá — 1 x Bánh đa cua (45.000)
-((SELECT id FROM users WHERE email = 'tranthilan@gmail.com'),
- (SELECT id FROM restaurants WHERE name = 'Bếp Việt Hưng Yên'),
- (SELECT id FROM addresses WHERE address_detail = 'Số 12 đường Nguyễn Thiện Thuật'),
- 45000, 15000, 0, 60000, 'Không cho hành', 'DELIVERED', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(2, 4, 4,
+ 45000, 15000, 0, 60000,
+ 'Không cho hành', 'DELIVERED'),
 
--- Đơn 5: DELIVERED nhưng CHƯA đánh giá — 1 x Bún chả Hà Nội (50.000)
-((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com'),
- (SELECT id FROM restaurants WHERE name = 'Nhà Hàng Phố Việt'),
- (SELECT id FROM addresses WHERE address_detail = 'Số 50 đường Trần Phú'),
- 50000, 15000, 0, 65000, 'Đơn chờ bạn đánh giá', 'DELIVERED', DATE_SUB(NOW(), INTERVAL 1 DAY));
+(1, 5, 5,
+ 60000, 15000, 0, 75000,
+ 'Giao tận nơi', 'DELIVERED');
 
 
--- =====================================================================
--- 9. ORDER_ITEMS — 5 dòng (snapshot tên & giá món lúc đặt)
---    subtotal = quantity * unit_price, tổng khớp food_total của đơn
--- =====================================================================
-INSERT INTO order_items (order_id, food_id, food_name, quantity, unit_price, subtotal, note) VALUES
-((SELECT id FROM orders WHERE note = 'Giao giờ nghỉ trưa'),
- (SELECT id FROM foods WHERE name = 'Cơm gà chiên mắm'), 'Cơm gà chiên mắm', 2, 60000, 120000, 'Không cay'),
+-- =====================================================
+-- 9. ORDER_ITEMS - 5 DỮ LIỆU
+-- =====================================================
 
-((SELECT id FROM orders WHERE note = 'Gọi trước khi giao 5 phút'),
- (SELECT id FROM foods WHERE name = 'Khoai tây chiên'),  'Khoai tây chiên',  2, 30000, 60000,  'Chiên giòn'),
+INSERT INTO order_items
+(order_id, food_id, food_name, quantity,
+ unit_price, subtotal, note)
+VALUES
+(1, 1, 'Phở bò đặc biệt', 2, 55000, 110000, 'Ít hành'),
 
-((SELECT id FROM orders WHERE note = 'Đơn đã giao và đã đánh giá'),
- (SELECT id FROM foods WHERE name = 'Phở bò đặc biệt'),  'Phở bò đặc biệt',  2, 55000, 110000, 'Ít hành'),
+(2, 2, 'Cơm gà chiên mắm', 1, 60000, 60000, 'Không cay'),
 
-((SELECT id FROM orders WHERE note = 'Không cho hành'),
- (SELECT id FROM foods WHERE name = 'Bánh đa cua'),      'Bánh đa cua',      1, 45000, 45000,  NULL),
+(3, 3, 'Bún chả Hưng Yên', 2, 50000, 100000, 'Thêm rau'),
 
-((SELECT id FROM orders WHERE note = 'Đơn chờ bạn đánh giá'),
- (SELECT id FROM foods WHERE name = 'Bún chả Hà Nội'),   'Bún chả Hà Nội',   1, 50000, 50000,  'Thêm rau sống');
+(4, 4, 'Bánh đa cua', 1, 45000, 45000, 'Không cho hành'),
+
+(5, 5, 'Khoai tây chiên', 2, 30000, 60000, 'Chiên giòn');
 
 
--- =====================================================================
--- 10. PAYMENTS — 5 dòng (1 đơn / 1 payment), amount = total_amount
---     Đúng nghiệp vụ:
---       PENDING + CASH        → UNPAID (chưa nhận hàng nên chưa trả tiền)
---       DELIVERED + CASH      → PAID   (COD tự chuyển PAID khi giao xong)
---       CANCELLED + đã trả    → REFUNDED
--- =====================================================================
-INSERT INTO payments (order_id, payment_method, amount, status, transaction_code, payment_date) VALUES
-((SELECT id FROM orders WHERE note = 'Giao giờ nghỉ trưa'),
- 'CASH', 135000, 'UNPAID', NULL, NULL),
+-- =====================================================
+-- 10. PAYMENTS - 5 DỮ LIỆU
+-- =====================================================
 
-((SELECT id FROM orders WHERE note = 'Gọi trước khi giao 5 phút'),
- 'MOMO', 75000, 'PAID', 'MOMO202609290001', NOW()),
+INSERT INTO payments
+(order_id, payment_method, amount,
+ status, transaction_code, payment_date)
+VALUES
+(1, 'CASH', 125000,
+ 'PAID', NULL, NOW()),
 
-((SELECT id FROM orders WHERE note = 'Đơn đã giao và đã đánh giá'),
- 'CASH', 125000, 'PAID', NULL, DATE_SUB(NOW(), INTERVAL 3 DAY)),
+(2, 'MOMO', 75000,
+ 'PAID', 'MOMO202609290001', NOW()),
 
-((SELECT id FROM orders WHERE note = 'Không cho hành'),
- 'VNPAY', 60000, 'PAID', 'VNPAY202609290002', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(3, 'VNPAY', 115000,
+ 'PAID', 'VNPAY202609290002', NOW()),
 
-((SELECT id FROM orders WHERE note = 'Đơn chờ bạn đánh giá'),
- 'CASH', 65000, 'PAID', NULL, DATE_SUB(NOW(), INTERVAL 1 DAY));
+(4, 'BANK_TRANSFER', 60000,
+ 'PAID', 'BANK202609290003', NOW()),
 
-
--- =====================================================================
--- 11. REVIEWS — 2 dòng (chỉ đánh giá đơn DELIVERED, mỗi đơn 1 lần)
---     Cố tình KHÔNG đánh giá đơn 'Đơn chờ bạn đánh giá' để trong app
---     vẫn còn nút "Đánh giá quán ⭐" cho bạn bấm thử.
--- =====================================================================
-INSERT INTO reviews (user_id, restaurant_id, order_id, rating, comment) VALUES
-((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com'),
- (SELECT id FROM restaurants WHERE name = 'Nhà Hàng Phố Việt'),
- (SELECT id FROM orders WHERE note = 'Đơn đã giao và đã đánh giá'),
- 5, 'Phở bò nước dùng đậm đà, giao hàng nhanh.'),
-
-((SELECT id FROM users WHERE email = 'tranthilan@gmail.com'),
- (SELECT id FROM restaurants WHERE name = 'Bếp Việt Hưng Yên'),
- (SELECT id FROM orders WHERE note = 'Không cho hành'),
- 4, 'Bánh đa cua ngon, giá hợp lý.');
+(5, 'CASH', 75000,
+ 'PAID', NULL, NOW());
 
 
--- =====================================================================
--- KIỂM TRA SAU KHI CHẠY
--- =====================================================================
-SELECT 'users' AS bang, COUNT(*) AS so_dong FROM users
-UNION ALL SELECT 'addresses',   COUNT(*) FROM addresses
-UNION ALL SELECT 'restaurants', COUNT(*) FROM restaurants
-UNION ALL SELECT 'categories',  COUNT(*) FROM categories
-UNION ALL SELECT 'foods',       COUNT(*) FROM foods
-UNION ALL SELECT 'carts',       COUNT(*) FROM carts
-UNION ALL SELECT 'cart_items',  COUNT(*) FROM cart_items
-UNION ALL SELECT 'orders',      COUNT(*) FROM orders
-UNION ALL SELECT 'order_items', COUNT(*) FROM order_items
-UNION ALL SELECT 'payments',    COUNT(*) FROM payments
-UNION ALL SELECT 'reviews',     COUNT(*) FROM reviews;
+-- =====================================================
+-- 11. REVIEWS - 5 DỮ LIỆU
+-- Chỉ review các đơn DELIVERED
+-- =====================================================
 
--- Đối chiếu tiền của từng đơn với tổng order_items (cột lech phải = 0)
-SELECT o.id, o.status, o.food_total, SUM(oi.subtotal) AS tong_mon,
-       o.total_amount, (o.food_total + o.delivery_fee - o.discount) AS tinh_lai,
-       o.total_amount - (o.food_total + o.delivery_fee - o.discount) AS lech
-FROM orders o JOIN order_items oi ON oi.order_id = o.id
-GROUP BY o.id, o.status, o.food_total, o.total_amount, o.delivery_fee, o.discount
-ORDER BY o.id;
+INSERT INTO reviews
+(user_id, restaurant_id, order_id, rating, comment)
+VALUES
+(1, 1, 1, 5,
+ 'Món ăn ngon, giao hàng nhanh.'),
 
+(2, 2, 2, 4,
+ 'Cơm ngon, phần ăn khá đầy đặn.'),
 
--- =====================================================================
--- TUỲ CHỌN — chạy thêm nếu bạn BẮT BUỘC phải có 5 dòng ở bảng reviews
--- (đổi 3 đơn còn lại thành DELIVERED rồi đánh giá nốt).
--- Chạy khối này thì app sẽ KHÔNG còn đơn PENDING / DELIVERING để test
--- huỷ đơn và tab "Đang xử lý".
--- =====================================================================
--- UPDATE orders SET status = 'DELIVERED'
---  WHERE note IN ('Giao giờ nghỉ trưa', 'Gọi trước khi giao 5 phút');
--- UPDATE payments p JOIN orders o ON o.id = p.order_id
---    SET p.status = 'PAID', p.payment_date = NOW()
---  WHERE o.note = 'Giao giờ nghỉ trưa';
---
--- INSERT INTO reviews (user_id, restaurant_id, order_id, rating, comment) VALUES
--- ((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com'),
---  (SELECT id FROM restaurants WHERE name = 'Cơm Nhà Hà Nội'),
---  (SELECT id FROM orders WHERE note = 'Giao giờ nghỉ trưa'), 4, 'Cơm gà ngon, phần ăn đầy đặn.'),
--- ((SELECT id FROM users WHERE email = 'tranthilan@gmail.com'),
---  (SELECT id FROM restaurants WHERE name = 'Quán Ngon Phố Nhãn'),
---  (SELECT id FROM orders WHERE note = 'Gọi trước khi giao 5 phút'), 5, 'Khoai tây giòn và rất ngon.'),
--- ((SELECT id FROM users WHERE email = 'nguyenvanan@gmail.com'),
---  (SELECT id FROM restaurants WHERE name = 'Nhà Hàng Phố Việt'),
---  (SELECT id FROM orders WHERE note = 'Đơn chờ bạn đánh giá'), 5, 'Bún chả thơm, chả nướng vừa tới.');
+(1, 3, 3, 5,
+ 'Bún chả ngon, nước chấm vừa miệng.'),
 
+(2, 4, 4, 4,
+ 'Đồ ăn ổn, giá hợp lý.'),
 
-
-
+(1, 5, 5, 5,
+ 'Khoai tây giòn và rất ngon.');
 
 
 -- =====================================================
@@ -326,3 +694,40 @@ ORDER BY o.id;
 -- =====================================================
 
 SHOW TABLES;
+
+SELECT * FROM users;
+SELECT * FROM addresses;
+SELECT * FROM restaurants;
+SELECT * FROM categories;
+SELECT * FROM foods;
+SELECT * FROM carts;
+SELECT * FROM cart_items;
+SELECT * FROM orders;
+SELECT * FROM order_items;
+SELECT * FROM payments;
+SELECT * FROM reviews;
+
+
+-- =====================================================
+-- THÔNG TIN ĐĂNG NHẬP TEST
+-- =====================================================
+-- CUSTOMER:
+-- Email: nguyenvanan@gmail.com
+-- Password: 123456
+--
+-- CUSTOMER:
+-- Email: tranthilan@gmail.com
+-- Password: 123456
+--
+-- RESTAURANT_OWNER:
+-- Email: leminhtuan@gmail.com
+-- Password: 123456
+--
+-- RESTAURANT_OWNER:
+-- Email: phamvanhung@gmail.com
+-- Password: 123456
+--
+-- ADMIN:
+-- Email: admin@datdoan.vn
+-- Password: 123456
+-- =====================================================

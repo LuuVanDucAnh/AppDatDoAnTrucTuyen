@@ -69,6 +69,14 @@ export function hasSession() {
   return Boolean(accessToken);
 }
 
+export function getAccessToken() {
+  return accessToken;
+}
+
+export function getRefreshToken() {
+  return refreshToken;
+}
+
 /** AppContext đăng ký callback để tự đăng xuất khi refresh token cũng hết hạn. */
 export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;

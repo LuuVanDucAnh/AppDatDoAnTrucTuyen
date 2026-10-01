@@ -39,6 +39,9 @@ export const API_BASE_URL = `${SERVER_URL}/api/v1`;
 /** Phí giao hàng cố định theo nghiệp vụ Backend (orders.service.js) */
 export const DELIVERY_FEE = 15000;
 
+/** Địa chỉ trang Web Quản Trị dành cho Quản trị viên sàn (Admin Portal) */
+export const ADMIN_WEB_URL = process.env.EXPO_PUBLIC_ADMIN_WEB_URL || 'http://localhost:5173';
+
 /**
  * Ảnh do Backend upload trả về đường dẫn tương đối (/uploads/...),
  * hàm này ghép thành URL đầy đủ để <Image> tải được.

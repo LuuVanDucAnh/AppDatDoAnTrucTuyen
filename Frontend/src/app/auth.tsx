@@ -11,12 +11,16 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { useApp } from '@/context/AppContext';
+import { getAccessToken, getRefreshToken } from '@/services/api';
+import { ADMIN_WEB_URL } from '@/services/config';
+import { loadTokens } from '@/services/storage';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -31,10 +35,34 @@ export default function AuthScreen() {
   const [saveSession, setSaveSession] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Chủ quán vào thẳng khu quản lý, ADMIN vào quản lý đơn toàn sàn, khách vào trang chủ.
-  const goAfterLogin = (role: string) => {
+  // Chủ quán vào thẳng khu quản lý, ADMIN mở trang quản trị Web, khách vào trang chủ.
+  const goAfterLogin = async (userObj: any) => {
+    const role = userObj?.role;
     if (role === 'ADMIN') {
-      router.replace('/admin/orders' as any);
+      const stored = await loadTokens();
+      const token = stored.accessToken || getAccessToken() || '';
+      const refresh = stored.refreshToken || getRefreshToken() || '';
+      const userParam = encodeURIComponent(JSON.stringify(userObj));
+      const targetUrl = `${ADMIN_WEB_URL}/?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refresh)}&user=${userParam}`;
+
+      if (Platform.OS === 'web') {
+        window.location.href = targetUrl;
+      } else {
+        Alert.alert(
+          'Đăng nhập Admin thành công',
+          'Bạn đang đăng nhập bằng tài khoản Quản trị viên (ADMIN). Hệ thống sẽ chuyển tiếp bạn sang Trang Quản Trị Web.',
+          [
+            {
+              text: 'Mở Trang Quản Trị Web',
+              onPress: () => {
+                Linking.openURL(targetUrl).catch(() => {
+                  Alert.alert('Không thể mở trình duyệt', `Vui lòng truy cập: ${ADMIN_WEB_URL}`);
+                });
+              },
+            },
+          ]
+        );
+      }
     } else if (role === 'RESTAURANT_OWNER') {
       router.replace('/owner/dashboard');
     } else {
@@ -56,7 +84,7 @@ export default function AuthScreen() {
     setSubmitting(true);
     const loggedIn = await login(email, password);
     setSubmitting(false);
-    if (loggedIn) goAfterLogin(loggedIn.role);
+    if (loggedIn) await goAfterLogin(loggedIn);
   };
 
   // ── Đăng ký: POST /users rồi tự đăng nhập luôn ────────────────────────────
