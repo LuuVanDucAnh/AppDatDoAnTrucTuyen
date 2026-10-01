@@ -15,6 +15,9 @@ export default function OwnerLayout() {
         <Stack.Screen name="orders" />
         <Stack.Screen name="menu" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="edit-restaurant" />
+        <Stack.Screen name="create-restaurant" />
+        <Stack.Screen name="reviews" />
       </Stack>
     </OwnerProvider>
   );

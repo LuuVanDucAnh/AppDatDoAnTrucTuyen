@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -18,7 +19,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { restaurantApi } from '@/services/api';
 import { DELIVERY_FEE, resolveImageUrl } from '@/services/config';
-import type { ApiRestaurantMenu } from '@/services/types';
+import type { ApiRestaurantMenu, ApiReview } from '@/services/types';
 
 
 
@@ -113,6 +114,8 @@ export default function RestaurantDetailScreen() {
   const [activeTab, setActiveTab] = useState<number | 'all'>('all');
   const [isFavorite, setIsFavorite] = useState(false);
   const [addingFoodId, setAddingFoodId] = useState<number | null>(null);
+  const [reviews, setReviews] = useState<ApiReview[]>([]);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
 
   const loadMenu = useCallback(async () => {
     if (!restaurantId || Number.isNaN(restaurantId)) {
@@ -121,7 +124,12 @@ export default function RestaurantDetailScreen() {
     }
     setError(null);
     try {
-      setMenu(await restaurantApi.getMenu(restaurantId));
+      const [menuData, reviewsData] = await Promise.all([
+        restaurantApi.getMenu(restaurantId),
+        restaurantApi.getReviews(restaurantId).catch(() => []),
+      ]);
+      setMenu(menuData);
+      setReviews(reviewsData || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không tải được thực đơn');
     }
@@ -283,12 +291,15 @@ export default function RestaurantDetailScreen() {
         <View style={styles.restaurantCard}>
           <View style={styles.restaurantNameRow}>
             <Text style={styles.restaurantName}>{info.name}</Text>
-            <View style={styles.ratingBadge}>
+            <TouchableOpacity
+              style={styles.ratingBadge}
+              onPress={() => setShowReviewsModal(true)}
+            >
               <Ionicons name="star" size={13} color="#D97706" />
               <Text style={styles.ratingText}>
-                {info.rating} ({info.reviews})
+                {info.rating} ({info.reviews}) ›
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.restaurantAddress}>{info.address}</Text>
@@ -424,7 +435,7 @@ export default function RestaurantDetailScreen() {
             <TouchableOpacity
               style={styles.bottomCartActionBtn}
               activeOpacity={0.85}
-              onPress={() => router.push('/cart')}
+              onPress={() => router.push('/customer/cart' as any)}
             >
               <Text style={styles.bottomCartActionBtnText}>Xem giỏ</Text>
               <Ionicons name="arrow-forward" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
@@ -432,6 +443,66 @@ export default function RestaurantDetailScreen() {
           </View>
         </View>
       )}
+
+      {/* MODAL XEM ĐÁNH GIÁ CỦA QUÁN */}
+      <Modal
+        visible={showReviewsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReviewsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.reviewsModalBox}>
+            <View style={styles.reviewsModalHeader}>
+              <View>
+                <Text style={styles.reviewsModalTitle}>Đánh giá từ khách hàng</Text>
+                <Text style={styles.reviewsModalSub}>
+                  {info?.rating}★ · {reviews.length} lượt đánh giá
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowReviewsModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+              {reviews.length === 0 ? (
+                <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                  <Ionicons name="chatbubbles-outline" size={40} color="#CBD5E1" />
+                  <Text style={{ marginTop: 8, color: '#94A3B8', fontSize: 13 }}>
+                    Chưa có đánh giá nào cho quán này.
+                  </Text>
+                </View>
+              ) : (
+                reviews.map((r) => (
+                  <View key={r.id} style={styles.customerReviewItem}>
+                    <View style={styles.customerReviewTop}>
+                      <Text style={styles.customerReviewUser}>
+                        {(r as any).user?.full_name || 'Khách hàng'}
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: 2 }}>
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Ionicons
+                            key={s}
+                            name={s <= Number(r.rating) ? 'star' : 'star-outline'}
+                            size={12}
+                            color="#F59E0B"
+                          />
+                        ))}
+                      </View>
+                    </View>
+                    {r.comment ? (
+                      <Text style={styles.customerReviewComment}>{r.comment}</Text>
+                    ) : (
+                      <Text style={styles.customerReviewNoComment}>Đã chấm {r.rating} sao</Text>
+                    )}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -890,5 +961,64 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  /* ── Reviews modal ─────────────────────────────────────────────────────── */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  reviewsModalBox: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '85%',
+  },
+  reviewsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 8,
+  },
+  reviewsModalTitle: {
+    fontSize: 16.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  reviewsModalSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  customerReviewItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+    gap: 4,
+  },
+  customerReviewTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  customerReviewUser: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  customerReviewComment: {
+    fontSize: 13,
+    color: '#334155',
+    lineHeight: 18,
+  },
+  customerReviewNoComment: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontStyle: 'italic',
   },
 });

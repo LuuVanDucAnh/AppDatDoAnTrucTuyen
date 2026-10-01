@@ -578,13 +578,27 @@ export default function CartScreen() {
                   </View>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={styles.addAddressBtn}
-                  onPress={() => setShowAddAddressForm(true)}
-                >
-                  <Ionicons name="add-circle-outline" size={18} color="#EA580C" />
-                  <Text style={styles.addAddressBtnText}>Thêm địa chỉ mới</Text>
-                </TouchableOpacity>
+                <View style={{ gap: 8, marginTop: 8 }}>
+                  <TouchableOpacity
+                    style={styles.addAddressBtn}
+                    onPress={() => setShowAddAddressForm(true)}
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color="#EA580C" />
+                    <Text style={styles.addAddressBtnText}>Thêm địa chỉ mới</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.addAddressBtn, { borderColor: '#CBD5E1', backgroundColor: '#F8FAFC' }]}
+                    onPress={() => {
+                      setShowAddressModal(false);
+                      router.push('/customer/addresses?select=true' as any);
+                    }}
+                  >
+                    <Ionicons name="options-outline" size={18} color="#475569" />
+                    <Text style={[styles.addAddressBtnText, { color: '#475569' }]}>
+                      Quản lý sổ địa chỉ chi tiết ›
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </ScrollView>
           </View>

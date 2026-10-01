@@ -70,7 +70,7 @@ export function OwnerHeader({
       <TouchableOpacity
         style={styles.avatar}
         activeOpacity={0.8}
-        onPress={() => router.push('/profile')}
+        onPress={() => router.push('/customer/profile' as any)}
       >
         <Ionicons name="person" size={15} color="#FFFFFF" />
       </TouchableOpacity>

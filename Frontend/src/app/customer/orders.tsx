@@ -248,7 +248,7 @@ export default function CustomerOrdersScreen() {
                       activeOpacity={0.85}
                       onPress={() =>
                         router.push({
-                          pathname: '/order-tracking',
+                          pathname: '/customer/order-tracking' as any,
                           params: { id: String(ord.id) },
                         })
                       }
@@ -286,7 +286,7 @@ export default function CustomerOrdersScreen() {
                       style={styles.reorderBtn}
                       onPress={() =>
                         router.push({
-                          pathname: '/order-tracking',
+                          pathname: '/customer/order-tracking' as any,
                           params: { id: String(ord.id) },
                         })
                       }

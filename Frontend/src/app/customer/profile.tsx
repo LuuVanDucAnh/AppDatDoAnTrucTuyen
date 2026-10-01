@@ -300,7 +300,9 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Sổ địa chỉ giao hàng</Text>
-            {addressesLoading && <ActivityIndicator size="small" color="#EA580C" />}
+            <TouchableOpacity onPress={() => router.push('/customer/addresses' as any)}>
+              <Text style={{ fontSize: 13, color: '#EA580C', fontWeight: '700' }}>Quản lý ›</Text>
+            </TouchableOpacity>
           </View>
 
           {addresses.length === 0 ? (

@@ -251,6 +251,32 @@ export const restaurantApi = {
     const { data } = await request<ApiRestaurant>(`/restaurants/${restaurantId}`);
     return data;
   },
+
+  /** GET /restaurants/:id/reviews — đánh giá của khách về quán */
+  async getReviews(restaurantId: number | string) {
+    const { data } = await request<ApiReview[]>(`/restaurants/${restaurantId}/reviews`);
+    return data;
+  },
+
+  /** POST /restaurants — tạo nhà hàng mới */
+  async create(input: {
+    owner_id?: number;
+    name: string;
+    address: string;
+    phone_number?: string;
+    image?: string;
+    description?: string;
+    opening_time?: string;
+    closing_time?: string;
+    status?: string;
+  }) {
+    const { data } = await request<ApiRestaurant>('/restaurants', {
+      method: 'POST',
+      body: input,
+      auth: true,
+    });
+    return data;
+  },
 };
 
 export const foodApi = {
@@ -401,6 +427,27 @@ export const addressApi = {
     return data;
   },
 
+  /** PUT /profile/addresses/:id */
+  async update(
+    addressId: number,
+    input: {
+      receiver_name?: string;
+      phone_number?: string;
+      address_detail?: string;
+      ward?: string;
+      district?: string;
+      city?: string;
+      is_default?: boolean;
+    }
+  ) {
+    const { data } = await request<ApiAddress>(`/profile/addresses/${addressId}`, {
+      method: 'PUT',
+      body: input,
+      auth: true,
+    });
+    return data;
+  },
+
   /** DELETE /profile/addresses/:id (soft delete) */
   async remove(addressId: number) {
     await request<null>(`/profile/addresses/${addressId}`, { method: 'DELETE', auth: true });
@@ -433,6 +480,46 @@ export const ownerApi = {
   /** GET /owner/my-restaurants */
   async getMyRestaurants() {
     const { data } = await request<ApiRestaurant[]>('/owner/my-restaurants', { auth: true });
+    return data;
+  },
+
+  /** PUT /owner/restaurants/:id — Cập nhật thông tin quán */
+  async updateRestaurantInfo(
+    restaurantId: number,
+    input: {
+      name?: string;
+      description?: string;
+      address?: string;
+      phone_number?: string;
+      image?: string;
+      opening_time?: string;
+      closing_time?: string;
+    }
+  ) {
+    const { data } = await request<ApiRestaurant>(`/owner/restaurants/${restaurantId}`, {
+      method: 'PUT',
+      body: input,
+      auth: true,
+    });
+    return data;
+  },
+
+  /** POST /restaurants — Tạo quán ăn mới */
+  async createRestaurant(input: {
+    owner_id?: number;
+    name: string;
+    address: string;
+    phone_number?: string;
+    image?: string;
+    description?: string;
+    opening_time?: string;
+    closing_time?: string;
+  }) {
+    const { data } = await request<ApiRestaurant>('/restaurants', {
+      method: 'POST',
+      body: { ...input, status: 'OPEN' },
+      auth: true,
+    });
     return data;
   },
 

@@ -123,6 +123,8 @@ interface AppContextType {
   refreshAddresses: () => Promise<void>;
   setDefaultAddress: (id: number) => Promise<void>;
   addAddress: (input: NewAddressInput) => Promise<Address | null>;
+  updateAddress: (id: number, input: Partial<NewAddressInput>) => Promise<boolean>;
+  deleteAddress: (id: number) => Promise<boolean>;
 
   // Giỏ hàng
   cartRestaurantId: number | null;
@@ -464,6 +466,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [addresses.length, refreshAddresses]
   );
 
+  const updateAddress = useCallback(
+    async (id: number, input: Partial<NewAddressInput>): Promise<boolean> => {
+      if (!hasSession()) {
+        promptLogin();
+        return false;
+      }
+      try {
+        await addressApi.update(id, {
+          receiver_name: input.receiverName?.trim(),
+          phone_number: input.phone?.trim(),
+          address_detail: input.addressDetail?.trim(),
+          ward: input.ward?.trim() || undefined,
+          district: input.district?.trim() || undefined,
+          city: input.city?.trim() || undefined,
+          is_default: input.isDefault,
+        });
+        await refreshAddresses();
+        return true;
+      } catch (err) {
+        showApiError(err, 'Không cập nhật được địa chỉ');
+        return false;
+      }
+    },
+    [refreshAddresses]
+  );
+
+  const deleteAddress = useCallback(
+    async (id: number): Promise<boolean> => {
+      if (!hasSession()) {
+        promptLogin();
+        return false;
+      }
+      try {
+        await addressApi.remove(id);
+        await refreshAddresses();
+        return true;
+      } catch (err) {
+        showApiError(err, 'Không xóa được địa chỉ');
+        return false;
+      }
+    },
+    [refreshAddresses]
+  );
+
   // ── Giỏ hàng ──────────────────────────────────────────────────────────────
   const addToCart = useCallback<AppContextType['addToCart']>(
     async (food, restaurant) => {
@@ -654,6 +700,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshAddresses,
     setDefaultAddress: setDefaultAddressFn,
     addAddress,
+    updateAddress,
+    deleteAddress,
 
     cartRestaurantId: cart?.restaurant?.id ?? null,
     cartRestaurantName: cart?.restaurant?.name ?? null,

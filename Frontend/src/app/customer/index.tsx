@@ -346,7 +346,7 @@ export default function HomeScreen() {
       Alert.alert('Quán đóng cửa', `"${res.name}" hiện đang đóng cửa.`);
       return;
     }
-    router.push({ pathname: '/restaurant', params: { id: String(res.id) } });
+    router.push({ pathname: '/customer/restaurant' as any, params: { id: String(res.id) } });
   };
 
   const openOrdersModal = async () => {
@@ -846,7 +846,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.viewCartButton}
               activeOpacity={0.85}
-              onPress={() => router.push('/cart')}
+              onPress={() => router.push('/customer/cart' as any)}
             >
               <Text style={styles.viewCartButtonText}>Xem giỏ</Text>
               <Ionicons name="arrow-forward" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
@@ -929,7 +929,7 @@ export default function HomeScreen() {
           activeOpacity={0.7}
           onPress={() => {
             setActiveTab('account');
-            router.push(isAuthenticated ? '/profile' : '/auth');
+            router.push(isAuthenticated ? ('/customer/profile' as any) : '/auth');
           }}
         >
           <Ionicons
@@ -1213,7 +1213,7 @@ export default function HomeScreen() {
                   activeOpacity={0.9}
                   onPress={() => {
                     setShowOrdersModal(false);
-                    router.push({ pathname: '/order-tracking', params: { id: String(ord.id) } });
+                    router.push({ pathname: '/customer/order-tracking' as any, params: { id: String(ord.id) } });
                   }}
                 >
                   <View style={styles.orderCardHeader}>

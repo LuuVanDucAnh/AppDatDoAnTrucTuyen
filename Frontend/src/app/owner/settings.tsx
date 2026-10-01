@@ -69,10 +69,22 @@ export default function OwnerSettingsScreen() {
               restaurant.closing_time?.slice(0, 5) ?? '--'
             }`}
           />
-          <Text style={styles.hint}>
-            Backend có API sửa thông tin quán (PUT /owner/restaurants/:id) nhưng màn sửa chưa được
-            dựng trong bộ giao diện này.
-          </Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => router.push('/owner/edit-restaurant' as any)}
+            >
+              <Ionicons name="create-outline" size={15} color="#EA580C" />
+              <Text style={styles.editBtnText}>Sửa thông tin</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.createBranchBtn}
+              onPress={() => router.push('/owner/create-restaurant' as any)}
+            >
+              <Ionicons name="add-circle-outline" size={15} color="#2563EB" />
+              <Text style={styles.createBranchBtnText}>+ Mở quán mới</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Trạng thái nhận đơn */}
@@ -139,8 +151,8 @@ export default function OwnerSettingsScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Đánh giá của khách</Text>
-            <TouchableOpacity onPress={() => void loadReviews()}>
-              <Text style={styles.linkText}>{reviews ? 'Tải lại' : 'Xem đánh giá'}</Text>
+            <TouchableOpacity onPress={() => router.push('/owner/reviews' as any)}>
+              <Text style={styles.linkText}>Xem tất cả ›</Text>
             </TouchableOpacity>
           </View>
 
@@ -176,13 +188,19 @@ export default function OwnerSettingsScreen() {
           <Row icon="person-outline" label="Chủ quán" value={user?.fullName ?? '—'} />
           <Row icon="mail-outline" label="Email" value={user?.email ?? '—'} />
 
-          <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/profile')}>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/customer/profile' as any)}
+          >
             <Ionicons name="person-circle-outline" size={18} color="#475569" />
             <Text style={styles.linkRowText}>Hồ sơ cá nhân</Text>
             <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.linkRow} onPress={() => router.replace('/')}>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.replace('/customer' as any)}
+          >
             <Ionicons name="swap-horizontal-outline" size={18} color="#475569" />
             <Text style={styles.linkRowText}>Chuyển sang giao diện khách hàng</Text>
             <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
@@ -310,4 +328,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
   },
   logoutText: { fontSize: 13.5, fontWeight: '800', color: '#B91C1C' },
+
+  editBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  editBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#EA580C',
+  },
+  createBranchBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  createBranchBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
 });
