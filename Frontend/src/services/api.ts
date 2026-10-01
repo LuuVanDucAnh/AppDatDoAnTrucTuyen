@@ -2,6 +2,8 @@ import { API_BASE_URL } from './config';
 import { clearTokens, loadTokens, saveTokens } from './storage';
 import type {
   ApiAddress,
+  ApiAdminDashboard,
+  ApiAdminOrder,
   ApiCart,
   ApiCategory,
   ApiOwnerDashboard,
@@ -555,6 +557,53 @@ export const ownerApi = {
   /** GET /owner/restaurants/:id/reviews */
   async getReviews(restaurantId: number) {
     const { data } = await request<ApiReview[]>(`/owner/restaurants/${restaurantId}/reviews`, {
+      auth: true,
+    });
+    return data;
+  },
+};
+
+// ── QUẢN TRỊ VIÊN (ADMIN) ──────────────────────────────────────────────────
+export const adminApi = {
+  /** GET /admin/orders — Lấy danh sách tất cả đơn hàng toàn sàn */
+  async getAllOrders(
+    params: {
+      status?: string;
+      restaurant_id?: number;
+      from?: string;
+      to?: string;
+      page?: number;
+      limit?: number;
+    } = {}
+  ) {
+    const { data, meta } = await request<ApiAdminOrder[]>('/admin/orders', {
+      query: { ...params, limit: params.limit ?? 50 },
+      auth: true,
+    });
+    return { data, meta };
+  },
+
+  /** GET /admin/orders/:orderId — Chi tiết một đơn hàng */
+  async getOrderDetail(orderId: number) {
+    const { data } = await request<ApiAdminOrder>(`/admin/orders/${orderId}`, {
+      auth: true,
+    });
+    return data;
+  },
+
+  /** PATCH /admin/orders/:orderId/status — Can thiệp ép cập nhật trạng thái đơn */
+  async forceUpdateOrderStatus(orderId: number, status: OrderStatus) {
+    const { data } = await request<ApiAdminOrder>(`/admin/orders/${orderId}/status`, {
+      method: 'PATCH',
+      body: { status },
+      auth: true,
+    });
+    return data;
+  },
+
+  /** GET /admin/dashboard — Tổng quan thống kê toàn sàn */
+  async getDashboard() {
+    const { data } = await request<ApiAdminDashboard>('/admin/dashboard', {
       auth: true,
     });
     return data;

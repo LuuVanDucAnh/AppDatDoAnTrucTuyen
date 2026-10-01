@@ -244,6 +244,22 @@ export default function ProfileScreen() {
           <Text style={styles.memberNote}>Đơn hàng đầu tiên: {memberSince}</Text>
         ) : null}
 
+        {/* Xem tất cả đơn hàng đã đặt */}
+        <TouchableOpacity
+          style={styles.customerOrderCard}
+          activeOpacity={0.9}
+          onPress={() => router.push('/customer/orders' as any)}
+        >
+          <View style={styles.customerOrderIcon}>
+            <Ionicons name="receipt" size={19} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.customerOrderTitle}>Đơn hàng của tôi</Text>
+            <Text style={styles.customerOrderSub}>Xem lịch sử đơn, tiến trình & đánh giá món ăn</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#C2410C" />
+        </TouchableOpacity>
+
         {/* Khu vực chủ quán */}
         {user.role === 'RESTAURANT_OWNER' && (
           <TouchableOpacity
@@ -259,6 +275,24 @@ export default function ProfileScreen() {
               <Text style={styles.ownerSub}>Quản lý đơn hàng, thực đơn và doanh thu</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#C2410C" />
+          </TouchableOpacity>
+        )}
+
+        {/* Khu vực Quản trị viên sàn */}
+        {user.role === 'ADMIN' && (
+          <TouchableOpacity
+            style={styles.adminCard}
+            activeOpacity={0.9}
+            onPress={() => router.push('/admin/orders' as any)}
+          >
+            <View style={styles.adminIcon}>
+              <Ionicons name="shield-checkmark" size={19} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.adminTitle}>Khu vực Quản trị viên (Admin)</Text>
+              <Text style={styles.adminSub}>Giám sát đơn hàng toàn sàn & can thiệp hệ thống</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#4F46E5" />
           </TouchableOpacity>
         )}
 
@@ -616,6 +650,27 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: 30, backgroundColor: '#F1F5F9' },
   memberNote: { fontSize: 10.5, color: '#94A3B8', textAlign: 'center', marginTop: -4 },
 
+  customerOrderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: 14,
+    padding: 13,
+  },
+  customerOrderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#C2410C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customerOrderTitle: { fontSize: 14, fontWeight: '800', color: '#9A3412' },
+  customerOrderSub: { fontSize: 11.5, color: '#C2410C', marginTop: 2 },
+
   ownerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -636,6 +691,27 @@ const styles = StyleSheet.create({
   },
   ownerTitle: { fontSize: 14, fontWeight: '800', color: '#9A3412' },
   ownerSub: { fontSize: 11.5, color: '#C2410C', marginTop: 2 },
+
+  adminCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    borderRadius: 14,
+    padding: 13,
+  },
+  adminIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminTitle: { fontSize: 14, fontWeight: '800', color: '#312E81' },
+  adminSub: { fontSize: 11.5, color: '#4F46E5', marginTop: 2 },
 
   card: {
     backgroundColor: '#FFFFFF',

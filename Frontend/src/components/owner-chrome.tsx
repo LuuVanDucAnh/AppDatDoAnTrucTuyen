@@ -7,9 +7,15 @@ import { useOwner } from '@/context/OwnerContext';
 
 /**
  * Header dùng chung cho 3 màn chủ quán:
- * tên quán đang quản lý + công tắc MỞ CỬA / ĐÓNG CỬA (PATCH toggle-status).
+ * tên quán đang quản lý + công tắc MỞ CỬA / ĐÓNG CỬA + chuông thông báo + avatar.
  */
-export function OwnerHeader() {
+export function OwnerHeader({
+  notificationCount = 3,
+  onPressBell,
+}: {
+  notificationCount?: number;
+  onPressBell?: () => void;
+}) {
   const router = useRouter();
   const { restaurant, restaurants, isOpen, toggleOpen, selectRestaurant } = useOwner();
 
@@ -18,27 +24,22 @@ export function OwnerHeader() {
       <TouchableOpacity
         style={styles.headerLeft}
         activeOpacity={0.7}
-        disabled={restaurants.length < 2}
         onPress={() => {
-          // Chủ quán có thể sở hữu nhiều quán → bấm để chuyển nhanh
-          const idx = restaurants.findIndex((r) => r.id === restaurant?.id);
-          const next = restaurants[(idx + 1) % restaurants.length];
-          if (next) selectRestaurant(next.id);
+          if (restaurants.length > 1) {
+            const idx = restaurants.findIndex((r) => r.id === restaurant?.id);
+            const next = restaurants[(idx + 1) % restaurants.length];
+            if (next) selectRestaurant(next.id);
+          }
         }}
       >
-        <View style={styles.storeIcon}>
-          <Ionicons name="storefront" size={16} color="#C2410C" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={styles.headerLabelRow}>
-            <Text style={styles.headerLabel}>Quán đang quản lý</Text>
-            {restaurants.length > 1 && (
-              <Ionicons name="swap-horizontal" size={12} color="#9CA3AF" />
-            )}
+        <View style={styles.headerTitleWrap}>
+          <Text style={styles.headerLabel}>Quán đang quản lý</Text>
+          <View style={styles.storeNameRow}>
+            <Text style={styles.headerStoreName} numberOfLines={1}>
+              {restaurant?.name ?? 'Đang tải...'}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color="#64748B" style={{ marginLeft: 3 }} />
           </View>
-          <Text style={styles.headerStoreName} numberOfLines={1}>
-            {restaurant?.name ?? 'Đang tải...'}
-          </Text>
         </View>
       </TouchableOpacity>
 
@@ -53,7 +54,24 @@ export function OwnerHeader() {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.avatar} onPress={() => router.push('/profile')}>
+      <TouchableOpacity
+        style={styles.bellBtn}
+        activeOpacity={0.7}
+        onPress={onPressBell ?? (() => {})}
+      >
+        <Ionicons name="notifications-outline" size={20} color="#334155" />
+        {notificationCount > 0 && (
+          <View style={styles.bellBadge}>
+            <View style={styles.bellDot} />
+          </View>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.avatar}
+        activeOpacity={0.8}
+        onPress={() => router.push('/profile')}
+      >
         <Ionicons name="person" size={15} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
@@ -61,14 +79,14 @@ export function OwnerHeader() {
 }
 
 const TABS = [
-  { href: '/owner/dashboard', label: 'Tổng quan', icon: 'stats-chart' },
-  { href: '/owner/orders', label: 'Đơn hàng', icon: 'receipt' },
-  { href: '/owner/menu', label: 'Thực đơn', icon: 'restaurant' },
-  { href: '/owner/settings', label: 'Cài đặt', icon: 'settings' },
+  { href: '/owner/dashboard', label: 'Tổng quan', icon: 'grid-outline', activeIcon: 'grid' },
+  { href: '/owner/orders', label: 'Đơn hàng', icon: 'receipt-outline', activeIcon: 'receipt', hasBadge: true },
+  { href: '/owner/menu', label: 'Thực đơn', icon: 'restaurant-outline', activeIcon: 'restaurant' },
+  { href: '/owner/settings', label: 'Cài đặt', icon: 'storefront-outline', activeIcon: 'storefront' },
 ] as const;
 
 /** Thanh tab dưới cùng, dùng chung cho các màn chủ quán. */
-export function OwnerTabBar() {
+export function OwnerTabBar({ ordersCount = 0 }: { ordersCount?: number }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -83,11 +101,18 @@ export function OwnerTabBar() {
             activeOpacity={0.7}
             onPress={() => router.replace(tab.href as any)}
           >
-            <Ionicons
-              name={(active ? tab.icon : `${tab.icon}-outline`) as any}
-              size={21}
-              color={active ? '#EA580C' : '#9CA3AF'}
-            />
+            <View style={styles.tabIconWrap}>
+              <Ionicons
+                name={(active ? tab.activeIcon : tab.icon) as any}
+                size={22}
+                color={active ? '#A04000' : '#64748B'}
+              />
+              {Boolean((tab as any).hasBadge && ordersCount > 0) && (
+                <View style={styles.tabItemBadge}>
+                  <Text style={styles.tabItemBadgeText}>{ordersCount}</Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
           </TouchableOpacity>
         );
@@ -171,15 +196,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
+  headerTitleWrap: {
+    justifyContent: 'center',
+  },
+  storeNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   headerLabel: {
     fontSize: 10,
-    color: '#94A3B8',
-    fontWeight: '600',
+    color: '#64748B',
+    fontWeight: '500',
+    marginBottom: 1,
   },
   headerStoreName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
-    color: '#111827',
+    color: '#0F172A',
+  },
+  bellBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bellDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
   },
   statusPill: {
     flexDirection: 'row',
@@ -203,7 +264,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#94A3B8',
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: '#15803D',
   },
@@ -211,9 +272,9 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#9A3412',
     alignItems: 'center',
     justifyContent: 'center',
@@ -232,13 +293,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
   },
+  tabIconWrap: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabItemBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    backgroundColor: '#A04000',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabItemBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
   tabLabel: {
     fontSize: 10,
-    color: '#9CA3AF',
+    color: '#64748B',
     fontWeight: '600',
   },
   tabLabelActive: {
-    color: '#EA580C',
+    color: '#A04000',
     fontWeight: '700',
   },
 

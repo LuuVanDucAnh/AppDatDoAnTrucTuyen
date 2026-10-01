@@ -23,6 +23,10 @@ export default function RootLayout() {
           <Stack.Screen name="order-tracking" options={{ headerShown: false }} />
           {/* Khu vực chủ quán: có _layout riêng bọc OwnerProvider */}
           <Stack.Screen name="owner" options={{ headerShown: false }} />
+          {/* Khu vực quản trị viên sàn */}
+          <Stack.Screen name="admin" options={{ headerShown: false }} />
+          {/* Phân hệ khách hàng */}
+          <Stack.Screen name="customer" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>
     </AppProvider>

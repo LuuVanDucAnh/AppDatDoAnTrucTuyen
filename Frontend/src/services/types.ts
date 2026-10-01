@@ -219,3 +219,36 @@ export interface ApiTopFood {
   total_revenue: number;
   order_count: number;
 }
+
+// ── QUẢN TRỊ VIÊN (ADMIN) ──────────────────────────────────────────────────
+
+/** Đơn hàng phía Admin: có đầy đủ thông tin khách hàng và nhà hàng */
+export interface ApiAdminOrder extends Omit<ApiOrder, 'restaurant'> {
+  user?: {
+    id: number;
+    full_name: string;
+    phone_number: string;
+    email: string | null;
+  };
+  restaurant?: {
+    id: number;
+    name: string;
+    address: string;
+    phone_number: string | null;
+    image?: string | null;
+  };
+}
+
+export interface ApiAdminDashboard {
+  users: { total: number; new_today: number };
+  restaurants: { total: number; open: number; closed: number };
+  orders: {
+    total: number;
+    today: number;
+    this_month: number;
+    pending: number;
+    cancelled: number;
+  };
+  revenue: { total: number; today: number; this_month: number };
+  total_reviews: number;
+}

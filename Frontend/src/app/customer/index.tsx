@@ -875,14 +875,14 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.tabItem}
           activeOpacity={0.7}
-          onPress={() => void openOrdersModal()}
+          onPress={() => router.push('/customer/orders' as any)}
         >
           <Ionicons
-            name={activeTab === 'orders' ? 'receipt' : 'receipt-outline'}
+            name="receipt-outline"
             size={22}
-            color={activeTab === 'orders' ? '#EA580C' : '#9CA3AF'}
+            color="#9CA3AF"
           />
-          <Text style={[styles.tabItemLabel, activeTab === 'orders' && styles.tabItemLabelActive]}>
+          <Text style={styles.tabItemLabel}>
             Đơn hàng
           </Text>
         </TouchableOpacity>

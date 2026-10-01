@@ -31,10 +31,15 @@ export default function AuthScreen() {
   const [saveSession, setSaveSession] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Chủ quán vào thẳng khu quản lý, khách vào trang chủ.
-  // (Màn Cài đặt của chủ quán có nút chuyển về giao diện khách.)
+  // Chủ quán vào thẳng khu quản lý, ADMIN vào quản lý đơn toàn sàn, khách vào trang chủ.
   const goAfterLogin = (role: string) => {
-    router.replace(role === 'RESTAURANT_OWNER' ? '/owner/dashboard' : '/');
+    if (role === 'ADMIN') {
+      router.replace('/admin/orders' as any);
+    } else if (role === 'RESTAURANT_OWNER') {
+      router.replace('/owner/dashboard');
+    } else {
+      router.replace('/');
+    }
   };
 
   // ── Đăng nhập: POST /users/login (Backend chỉ nhận email + password) ───────
