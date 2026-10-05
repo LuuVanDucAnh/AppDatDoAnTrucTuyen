@@ -6,6 +6,7 @@ import {
   Settings,
   AlertTriangle,
   X,
+  Trash2,
   Phone,
   MapPin,
   Clock,
@@ -25,8 +26,8 @@ import {
   Radio,
   Share2,
 } from 'lucide-react';
-import { ordersApi } from '../services/api';
-import type { AdminOrder, OrderStatus } from '../services/types';
+import { dashboardApi, ordersApi } from '../services/api';
+import type { AdminOrder, OrderStatus, PlatformDashboard } from '../services/types';
 import { OrderBadge, PaymentBadge } from '../components/Badge';
 
 const money = (val: number | string) =>
@@ -51,6 +52,7 @@ export function OrdersView() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [dashboard, setDashboard] = useState<PlatformDashboard | null>(null);
 
   // Modals
   const [detailOrder, setDetailOrder] = useState<AdminOrder | null>(null);
@@ -118,6 +120,7 @@ export function OrdersView() {
         setTotalPages(res.meta.totalPages || 1);
         setTotalCount(res.meta.total || 0);
       }
+      dashboardApi.getDashboard().then(setDashboard).catch(() => {});
     } catch (err: any) {
       showToast('error', err?.message || 'Không thể tải danh sách đơn hàng.');
     } finally {
@@ -154,6 +157,17 @@ export function OrdersView() {
       showToast('error', err?.message || 'Không thể cập nhật trạng thái đơn.');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleDeleteOrder = async (order: AdminOrder) => {
+    if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn đơn hàng #${order.id} khỏi hệ thống?`)) return;
+    try {
+      await ordersApi.deleteOrder(order.id);
+      showToast('success', `Đã xóa đơn hàng #${order.id} thành công.`);
+      fetchOrders();
+    } catch (err: any) {
+      showToast('error', err?.message || 'Không thể xóa đơn hàng.');
     }
   };
 
@@ -250,14 +264,14 @@ export function OrdersView() {
               <FileText size={18} />
             </div>
           </div>
-          <div className="card-big-value">1.250</div>
+          <div className="card-big-value">{dashboard?.orders?.today ?? totalCount}</div>
           <div className="card-footer-info" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ fontSize: '0.78rem', color: '#0f172a', fontWeight: 600 }}>
-              Doanh số sàn: <strong style={{ color: '#ea580c' }}>185.000.000đ</strong>
+              Doanh số hôm nay: <strong style={{ color: '#ea580c' }}>{Number(dashboard?.revenue?.today ?? 0).toLocaleString('vi-VN')}đ</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#16a34a', fontSize: '0.74rem' }}>
               <TrendingUp size={13} />
-              <span>Tăng 12.5% so với cùng khung giờ hôm qua</span>
+              <span>Đồng bộ thời gian thực từ Database</span>
             </div>
           </div>
         </div>
@@ -270,7 +284,9 @@ export function OrdersView() {
               <RotateCw size={18} />
             </div>
           </div>
-          <div className="card-big-value">142</div>
+          <div className="card-big-value">
+            {(dashboard?.orders?.pending ?? 0) + (dashboard?.orders?.preparing ?? 0) + (dashboard?.orders?.delivering ?? 0)}
+          </div>
           <div
             style={{
               display: 'grid',
@@ -284,63 +300,73 @@ export function OrdersView() {
           >
             <div>
               <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Chờ nhận</div>
-              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0284c7' }}>32</div>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0284c7' }}>
+                {dashboard?.orders?.pending ?? 0}
+              </div>
             </div>
             <div style={{ borderLeft: '1px solid #e0f2fe', borderRight: '1px solid #e0f2fe' }}>
               <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Đang nấu</div>
-              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#ea580c' }}>58</div>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#ea580c' }}>
+                {dashboard?.orders?.preparing ?? 0}
+              </div>
             </div>
             <div>
               <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Đang giao</div>
-              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#16a34a' }}>52</div>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#16a34a' }}>
+                {dashboard?.orders?.delivering ?? 0}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Card 3: Đơn giao trễ / Cảnh báo SLA */}
+        {/* Card 3: Đã giao thành công */}
         <div className="metric-card card-restaurants">
           <div className="card-top">
-            <span className="card-top-title">ĐƠN GIAO TRỄ / CẢNH BÁO SLA</span>
-            <div className="card-top-icon" style={{ background: '#fee2e2', color: '#dc2626' }}>
-              <BellOff size={18} />
+            <span className="card-top-title">ĐÃ GIAO THÀNH CÔNG (DELIVERED)</span>
+            <div className="card-top-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
+              <CheckCircle2 size={18} />
             </div>
           </div>
-          <div className="card-big-value" style={{ color: '#dc2626' }}>09</div>
+          <div className="card-big-value" style={{ color: '#059669' }}>
+            {dashboard?.orders?.completed ?? 0}
+          </div>
           <div className="card-footer-info">
-            <div style={{ width: '100%', height: 4, background: '#fee2e2', borderRadius: 99, marginBottom: 6 }}>
-              <div style={{ width: '65%', height: '100%', background: '#dc2626', borderRadius: 99 }} />
-            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem' }}>
-              <span style={{ color: '#64748b' }}>Vượt ngưỡng 45 phút</span>
-              <span style={{ color: '#dc2626', fontWeight: 700 }}>Cần can thiệp ngay</span>
+              <span style={{ color: '#64748b' }}>Tỷ lệ hoàn tất sàn:</span>
+              <span style={{ color: '#059669', fontWeight: 700 }}>
+                {totalCount > 0 ? Math.round(((dashboard?.orders?.completed ?? 0) / totalCount) * 100) : 100}% hoàn tất
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Card 4: Yêu cầu hủy / Tranh chấp */}
+        {/* Card 4: Đã huỷ / Tranh chấp */}
         <div className="metric-card card-users">
           <div className="card-top">
-            <span className="card-top-title">YÊU CẦU HỦY / TRANH CHẤP</span>
-            <div className="card-top-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+            <span className="card-top-title">ĐƠN ĐÃ HUỶ / TRANH CHẤP</span>
+            <div className="card-top-icon" style={{ background: '#fee2e2', color: '#dc2626' }}>
               <DollarSign size={18} />
             </div>
           </div>
-          <div className="card-big-value" style={{ color: '#b45309' }}>05</div>
+          <div className="card-big-value" style={{ color: '#dc2626' }}>
+            {dashboard?.orders?.cancelled ?? 0}
+          </div>
           <div className="card-footer-info" style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.74rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#64748b' }}>Quán xin hủy đơn quá tải:</span>
-              <strong style={{ color: '#0f172a' }}>03 đơn</strong>
+              <span style={{ color: '#64748b' }}>Tỷ lệ đơn huỷ sàn:</span>
+              <strong style={{ color: '#dc2626' }}>
+                {totalCount > 0 ? Math.round(((dashboard?.orders?.cancelled ?? 0) / totalCount) * 100) : 0}%
+              </strong>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#64748b' }}>Khách khiếu nại hoàn MoMo:</span>
-              <strong style={{ color: '#dc2626' }}>02 đơn</strong>
+            <div style={{ color: '#64748b' }}>
+              {dashboard?.orders?.cancelled ?? 0} đơn đã huỷ trong hệ thống
             </div>
           </div>
         </div>
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          3. WARNING BANNER (EXACT BANNER FROM IMAGE 4)
+          3. WARNING BANNER
          ───────────────────────────────────────────────────────────── */}
       <div
         style={{
@@ -374,7 +400,9 @@ export function OrdersView() {
           </div>
           <div>
             <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#9a3412', marginBottom: 3 }}>
-              03 Đơn hàng đang bị đình trệ quá 40 phút — Hệ thống kiến nghị can thiệp ngay
+              {(dashboard?.orders?.pending ?? 0) + (dashboard?.orders?.delivering ?? 0) > 0
+                ? `${(dashboard?.orders?.pending ?? 0) + (dashboard?.orders?.delivering ?? 0)} Đơn hàng đang luân chuyển — Admin có thể can thiệp cưỡng chế trạng thái`
+                : 'Hệ thống vận hành ổn định — Toàn bộ đơn hàng đã được xử lý'}
             </h4>
             <p style={{ fontSize: '0.78rem', color: '#7c2d12', margin: 0 }}>
               Quy trình SLA cam kết: Quán &lt; 20 phút chuẩn bị, Shipper &lt; 25 phút vận chuyển. Can thiệp bảo vệ trải nghiệm người dùng.
@@ -394,242 +422,155 @@ export function OrdersView() {
             letterSpacing: '0.03em',
           }}
         >
-          ƯU TIÊN CAO NHẤT
+          SUPER ADMIN
         </span>
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          4. 2 CRITICAL INTERVENTION CARDS (EXACT CARDS FROM IMAGE 4)
+          4. CRITICAL INTERVENTION CARDS (FROM DATABASE)
          ───────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: 18 }}>
-        {/* Card 1: #DH-8924 */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: 14,
-            padding: 20,
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#0f172a', fontFamily: 'var(--font-mono)' }}>
-                #DH-8924
-              </span>
-              <span
+      {(() => {
+        const activeList = orders.filter((o) =>
+          ['PENDING', 'CONFIRMED', 'PREPARING', 'DELIVERING'].includes(o.status)
+        );
+        if (activeList.length === 0) {
+          return null;
+        }
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: 18 }}>
+            {activeList.slice(0, 2).map((ord) => (
+              <div
+                key={ord.id}
                 style={{
-                  background: '#ffedd5',
-                  color: '#ea580c',
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  padding: '3px 8px',
-                  borderRadius: 6,
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 14,
+                  padding: 20,
+                  boxShadow: 'var(--shadow-card)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
                 }}
               >
-                ĐANG NẤU 35 PHÚT
-              </span>
-            </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#0f172a', fontFamily: 'var(--font-mono)' }}>
+                      #{ord.id}
+                    </span>
+                    <span
+                      style={{
+                        background: ord.status === 'DELIVERING' ? '#ffedd5' : '#f0f9ff',
+                        color: ord.status === 'DELIVERING' ? '#ea580c' : '#0284c7',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                      }}
+                    >
+                      {ord.status}
+                    </span>
+                  </div>
 
-            <span
-              style={{
-                background: '#fee2e2',
-                color: '#dc2626',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                padding: '3px 8px',
-                borderRadius: 9999,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <Clock size={12} />
-              <span>+15p so với SLA</span>
-            </span>
+                  <span
+                    style={{
+                      background: '#fff7ed',
+                      color: '#c2410c',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: 9999,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <Clock size={12} />
+                    <span>Đơn luân chuyển</span>
+                  </span>
+                </div>
+
+                {/* Route info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
+                  <strong style={{ color: '#0f172a' }}>{ord.restaurant?.name || `Quán #${ord.restaurant_id}`}</strong>
+                  <ArrowRight size={14} color="#94a3b8" />
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <strong style={{ color: '#0f172a' }}>{ord.user?.full_name || `Khách #${ord.user_id}`}</strong>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      ({ord.address?.phone_number || ord.user?.phone_number || 'SĐT: —'})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Alert Callout */}
+                <div
+                  style={{
+                    background: '#fffbeb',
+                    border: '1px solid #fef3c7',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    fontSize: '0.78rem',
+                    color: '#92400e',
+                    lineHeight: 1.5,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                  }}
+                >
+                  <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 2, color: '#d97706' }} />
+                  <span>
+                    <strong>Tổng tiền:</strong> {Number(ord.total_amount || 0).toLocaleString('vi-VN')}đ •{' '}
+                    <strong>Địa chỉ:</strong> {ord.address?.address_detail || 'Giao tận nơi'} •{' '}
+                    <strong>Ghi chú:</strong> {ord.note || 'Không có ghi chú'}
+                  </span>
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{
+                      flex: 1.4,
+                      height: 38,
+                      fontSize: '0.8rem',
+                      background: 'linear-gradient(135deg, #9a3412 0%, #c2410c 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                    onClick={() => {
+                      setForceStatusOrder(ord);
+                      setNewStatus(ord.status);
+                    }}
+                  >
+                    <Zap size={14} />
+                    <span>⚡ Can thiệp Force Update trạng thái</span>
+                  </button>
+
+                  <button
+                    className="btn-action-sm"
+                    style={{
+                      height: 38,
+                      padding: '0 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      color: '#334155',
+                      borderColor: '#cbd5e1',
+                    }}
+                    onClick={() => {
+                      setDetailOrder(ord);
+                    }}
+                  >
+                    <Eye size={14} />
+                    <span>Chi tiết đơn</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-
-          {/* Route info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
-            <strong style={{ color: '#0f172a' }}>Cơm Tấm Ba Ghiền</strong>
-            <ArrowRight size={14} color="#94a3b8" />
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <strong style={{ color: '#0f172a' }}>Nguyễn Văn A</strong>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(268 Lý Thường Kiệt, Q.10)</span>
-            </div>
-          </div>
-
-          {/* Alert Callout */}
-          <div
-            style={{
-              background: '#fffbeb',
-              border: '1px solid #fef3c7',
-              borderRadius: 8,
-              padding: '10px 14px',
-              fontSize: '0.78rem',
-              color: '#92400e',
-              lineHeight: 1.5,
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 8,
-            }}
-          >
-            <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 2, color: '#d97706' }} />
-            <span>
-              <strong>Tình trạng:</strong> Quán đã bấm "Đang nấu" 35 phút nhưng chưa bàn giao cho Shipper <strong>Trần Văn Hùng</strong> (đang đợi tại quán 14 phút).
-            </span>
-          </div>
-
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
-            <button
-              className="btn btn-primary"
-              style={{
-                flex: 1.4,
-                height: 38,
-                fontSize: '0.8rem',
-                background: 'linear-gradient(135deg, #9a3412 0%, #c2410c 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
-              onClick={() => handleQuickIntervention('DH-8924', 'READY')}
-            >
-              <Zap size={14} />
-              <span>⚡ Force Update: Chuyển sang Sẵn sàng lấy</span>
-            </button>
-
-            <button
-              className="btn-action-sm"
-              style={{
-                height: 38,
-                padding: '0 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                color: '#334155',
-                borderColor: '#cbd5e1',
-              }}
-              onClick={() => alert('Đang kết nối cuộc gọi hotline tới quán Cơm Tấm Ba Ghiền: 0908.123.456...')}
-            >
-              <Phone size={14} />
-              <span>Gọi Hotline Quán</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Card 2: #DH-8919 */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: 14,
-            padding: 20,
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#0f172a', fontFamily: 'var(--font-mono)' }}>
-                #DH-8919
-              </span>
-              <span
-                style={{
-                  background: '#fef2f2',
-                  color: '#dc2626',
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  padding: '3px 8px',
-                  borderRadius: 6,
-                }}
-              >
-                SỰ CỐ GIAO VẬN
-              </span>
-            </div>
-
-            <span style={{ color: '#dc2626', fontSize: '0.75rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <AlertCircle size={13} />
-              <span>! Tranh chấp hoàn tiền</span>
-            </span>
-          </div>
-
-          {/* Route info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
-            <strong style={{ color: '#0f172a' }}>Bún Chả Hà Nội Phố Cổ</strong>
-            <ArrowRight size={14} color="#94a3b8" />
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <strong style={{ color: '#0f172a' }}>Lê Quang Minh</strong>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(12 Huỳnh Thúc Kháng, Q.1)</span>
-            </div>
-          </div>
-
-          {/* Alert Callout */}
-          <div
-            style={{
-              background: '#f0f9ff',
-              border: '1px solid #e0f2fe',
-              borderRadius: 8,
-              padding: '10px 14px',
-              fontSize: '0.78rem',
-              color: '#0369a1',
-              lineHeight: 1.5,
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 8,
-            }}
-          >
-            <Truck size={15} style={{ flexShrink: 0, marginTop: 2, color: '#0284c7' }} />
-            <span>
-              <strong>Tình trạng:</strong> Shipper gặp sự cố xe hỏng giữa đường, khách gọi hotline yêu cầu hủy ngay và kích hoạt hoàn tiền tự động qua MoMo.
-            </span>
-          </div>
-
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
-            <button
-              className="btn btn-primary"
-              style={{
-                flex: 1.4,
-                height: 38,
-                fontSize: '0.8rem',
-                background: '#dc2626',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
-              onClick={() => handleQuickIntervention('DH-8919', 'REFUND_CANCEL')}
-            >
-              <Zap size={14} />
-              <span>⚡ Force Update: Hủy &amp; Hoàn tiền ngay</span>
-            </button>
-
-            <button
-              className="btn-action-sm"
-              style={{
-                height: 38,
-                padding: '0 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                color: '#334155',
-                borderColor: '#cbd5e1',
-              }}
-              onClick={() => handleQuickIntervention('DH-8919', 'REDISPATCH')}
-            >
-              <Share2 size={14} />
-              <span>Điều Shipper khác (Re-dispatch)</span>
-            </button>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ─────────────────────────────────────────────────────────────
           5. ORDERS MANAGEMENT TABLE & REALTIME FILTERS
@@ -780,7 +721,7 @@ export function OrdersView() {
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: 700, color: '#0f172a' }}>
-                            {order.restaurant?.name || 'Nhà hàng Warm Feast'}
+                            {order.restaurant?.name || 'Nhà hàng Food'}
                           </span>
                           <span style={{ fontSize: '0.73rem', color: '#64748b' }}>
                             {order.items?.length || 2} món trong đơn
@@ -869,6 +810,16 @@ export function OrdersView() {
                           >
                             <Zap size={13} />
                             <span>Force Update</span>
+                          </button>
+
+                          <button
+                            className="btn-action-sm"
+                            style={{ background: '#fef2f2', color: '#dc2626', borderColor: '#fecaca' }}
+                            title="Xóa đơn hàng này"
+                            onClick={() => handleDeleteOrder(order)}
+                          >
+                            <Trash2 size={13} />
+                            <span>Xóa</span>
                           </button>
                         </div>
                       </td>

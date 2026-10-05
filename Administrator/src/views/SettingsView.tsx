@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Settings, Save, CreditCard } from 'lucide-react';
 
 export function SettingsView() {
-  const [platformName, setPlatformName] = useState('Warm Feast Portal');
+  const [platformName, setPlatformName] = useState('Food');
   const [deliveryFee, setDeliveryFee] = useState('15000');
   const [supportPhone, setSupportPhone] = useState('1900 6868');
   const [momoActive, setMomoActive] = useState(true);

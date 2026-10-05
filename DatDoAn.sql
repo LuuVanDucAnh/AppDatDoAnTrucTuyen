@@ -481,7 +481,7 @@ VALUES
  'Nhà hàng chuyên các món ăn Việt Nam',
  '25 Nguyễn Trãi, Thanh Xuân, Hà Nội',
  '0912000001',
- 'pho-viet.jpg',
+ 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=80',
  '08:00:00', '22:00:00', 'OPEN'),
 
 (3,
@@ -489,7 +489,7 @@ VALUES
  'Các món cơm gia đình truyền thống',
  '36 Cầu Giấy, Dịch Vọng, Cầu Giấy, Hà Nội',
  '0912000002',
- 'com-nha-ha-noi.jpg',
+ 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
  '09:00:00', '21:30:00', 'OPEN'),
 
 (4,
@@ -497,7 +497,7 @@ VALUES
  'Nhà hàng phục vụ món Việt và món gia đình',
  '18 Lê Lợi, Lê Lợi, TP Hưng Yên, Hưng Yên',
  '0912000003',
- 'bep-viet-hung-yen.jpg',
+ 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80',
  '08:00:00', '22:00:00', 'OPEN'),
 
 (4,
@@ -505,7 +505,7 @@ VALUES
  'Các món ăn bình dân và đồ uống',
  '50 Trần Phú, Lam Sơn, TP Hưng Yên, Hưng Yên',
  '0912000004',
- 'quan-ngon-pho-nhan.jpg',
+ 'https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?w=800&auto=format&fit=crop&q=80',
  '10:00:00', '22:00:00', 'OPEN'),
 
 (3,
@@ -513,7 +513,7 @@ VALUES
  'Đồ ăn nhanh, ăn vặt và đồ uống',
  '72 Hồ Tùng Mậu, Mai Dịch, Cầu Giấy, Hà Nội',
  '0912000005',
- 'goc-an-vat.jpg',
+ 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
  '10:00:00', '23:00:00', 'OPEN');
 
 
@@ -541,27 +541,27 @@ VALUES
 (1,
  'Phở bò đặc biệt',
  'Phở bò truyền thống với thịt bò và nước dùng đậm đà',
- 55000, 'pho-bo.jpg', 'AVAILABLE'),
+ 55000, 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800&auto=format&fit=crop&q=80', 'AVAILABLE'),
 
 (2,
  'Cơm gà chiên mắm',
  'Cơm trắng ăn kèm gà chiên nước mắm',
- 60000, 'com-ga.jpg', 'AVAILABLE'),
+ 60000, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80', 'AVAILABLE'),
 
 (3,
  'Bún chả Hưng Yên',
  'Bún chả với thịt nướng và nước chấm',
- 50000, 'bun-cha.jpg', 'AVAILABLE'),
+ 50000, 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80', 'AVAILABLE'),
 
 (4,
  'Bánh đa cua',
  'Bánh đa cua truyền thống',
- 45000, 'banh-da-cua.jpg', 'AVAILABLE'),
+ 45000, 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80', 'AVAILABLE'),
 
 (5,
  'Khoai tây chiên',
  'Khoai tây chiên giòn',
- 30000, 'khoai-tay.jpg', 'AVAILABLE');
+ 30000, 'https://images.unsplash.com/photo-1576107232684-1279f3908594?w=800&auto=format&fit=crop&q=80', 'AVAILABLE');
 
 
 -- =====================================================

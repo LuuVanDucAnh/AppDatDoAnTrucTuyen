@@ -48,7 +48,7 @@ export function Sidebar({ activeTab, onSelectTab, currentUser, onLogout }: Sideb
           <Flame size={24} />
         </div>
         <div className="brand-text">
-          <h1>Warm Feast</h1>
+          <h1>Food</h1>
           <span>ADMIN PORTAL</span>
         </div>
       </div>

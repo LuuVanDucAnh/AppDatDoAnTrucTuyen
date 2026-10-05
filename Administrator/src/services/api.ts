@@ -193,6 +193,24 @@ export const usersApi = {
     return res.data;
   },
 
+  async updateUser(
+    id: number,
+    data: {
+      full_name?: string;
+      email?: string;
+      phone_number?: string;
+      role?: UserRole;
+      status?: number;
+      password?: string;
+    }
+  ): Promise<AdminUser> {
+    const res = await request<AdminUser>(`/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+
   async deleteUser(id: number): Promise<string> {
     const res = await request<{ message: string }>(`/admin/users/${id}`, {
       method: 'DELETE',
@@ -247,6 +265,27 @@ export const restaurantsApi = {
     return res.data;
   },
 
+  async updateRestaurant(
+    id: number,
+    data: {
+      name?: string;
+      address?: string;
+      phone_number?: string;
+      description?: string;
+      image?: string;
+      opening_time?: string;
+      closing_time?: string;
+      status?: RestaurantStatus;
+      owner_id?: number;
+    }
+  ): Promise<AdminRestaurant> {
+    const res = await request<AdminRestaurant>(`/admin/restaurants/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+
   async deleteRestaurant(id: number): Promise<string> {
     const res = await request<{ message: string }>(`/admin/restaurants/${id}`, {
       method: 'DELETE',
@@ -286,6 +325,13 @@ export const ordersApi = {
       body: JSON.stringify({ status }),
     });
     return res.data;
+  },
+
+  async deleteOrder(id: number): Promise<string> {
+    const res = await request<{ message: string }>(`/admin/orders/${id}`, {
+      method: 'DELETE',
+    });
+    return res.message;
   },
 };
 

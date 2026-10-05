@@ -18,7 +18,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useApp } from '@/context/AppContext';
 import { restaurantApi } from '@/services/api';
-import { DELIVERY_FEE, resolveImageUrl } from '@/services/config';
+import { DELIVERY_FEE, DEFAULT_FOOD_IMAGE, resolveImageUrl } from '@/services/config';
 import type { ApiRestaurantMenu, ApiReview } from '@/services/types';
 
 
@@ -93,7 +93,7 @@ function buildSections(menu: ApiRestaurantMenu): MenuSectionView[] {
         name: f.name,
         desc: f.description ?? '',
         price: Number(f.price) || 0,
-        image: resolveImageUrl(f.image),
+        image: resolveImageUrl(f.image, DEFAULT_FOOD_IMAGE),
       })),
     }))
     // Backend đã lọc status = AVAILABLE, danh mục rỗng thì không cần hiện

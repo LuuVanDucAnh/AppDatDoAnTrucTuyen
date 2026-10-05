@@ -29,37 +29,60 @@ export class AdminService {
     const [
       totalUsers,
       newUsersToday,
+      customerCount,
+      ownerCount,
+      adminCount,
+      activeUsers,
+      lockedUsers,
       totalRestaurants,
       openRestaurants,
       totalOrders,
       todayOrders,
       monthOrders,
+      pendingOrders,
+      preparingOrders,
+      deliveringOrders,
+      completedOrders,
+      cancelledOrders,
       totalRevenue,
       todayRevenue,
       monthRevenue,
-      pendingOrders,
-      cancelledOrders,
       totalReviews,
+      avgReviewResult,
+      positiveReviews,
+      negativeReviews,
+      totalGmv,
+      paidAmount,
+      unpaidAmount,
+      paymentMethodsBreakdown,
     ] = await Promise.all([
       Users.count({ where: { deleted_at: null } }),
       Users.count({
-        where: { created_at: { [Op.between]: [startOfDay, endOfDay] } },
+        where: { created_at: { [Op.between]: [startOfDay, endOfDay] }, deleted_at: null },
       }),
+      Users.count({ where: { role: 'CUSTOMER', deleted_at: null } }),
+      Users.count({ where: { role: { [Op.in]: ['RESTAURANT_OWNER', 'OWNER'] }, deleted_at: null } }),
+      Users.count({ where: { role: 'ADMIN', deleted_at: null } }),
+      Users.count({ where: { status: 1, deleted_at: null } }),
+      Users.count({ where: { status: 0, deleted_at: null } }),
       Restaurants.count({ where: { deleted_at: null } }),
       Restaurants.count({ where: { status: 'OPEN', deleted_at: null } }),
       Orders.count(),
       Orders.count({
         where: {
           created_at: { [Op.between]: [startOfDay, endOfDay] },
-          status: { [Op.ne]: 'CANCELLED' },
         },
       }),
       Orders.count({
         where: {
           created_at: { [Op.between]: [startOfMonth, endOfMonth] },
-          status: { [Op.ne]: 'CANCELLED' },
         },
       }),
+      Orders.count({ where: { status: 'PENDING' } }),
+      Orders.count({ where: { status: { [Op.in]: ['CONFIRMED', 'PREPARING'] } } }),
+      Orders.count({ where: { status: 'DELIVERING' } }),
+      Orders.count({ where: { status: 'DELIVERED' } }),
+      Orders.count({ where: { status: 'CANCELLED' } }),
       Orders.sum('total_amount', { where: { status: 'DELIVERED' } }),
       Orders.sum('total_amount', {
         where: {
@@ -73,15 +96,36 @@ export class AdminService {
           created_at: { [Op.between]: [startOfMonth, endOfMonth] },
         },
       }),
-      Orders.count({ where: { status: 'PENDING' } }),
-      Orders.count({ where: { status: 'CANCELLED' } }),
       Reviews.count(),
+      Reviews.findOne({
+        attributes: [[fn('COALESCE', fn('AVG', col('rating')), 0), 'avg']],
+        raw: true,
+      }),
+      Reviews.count({ where: { rating: { [Op.gte]: 4 } } }),
+      Reviews.count({ where: { rating: { [Op.lte]: 2 } } }),
+      Payments.sum('amount'),
+      Payments.sum('amount', { where: { status: 'PAID' } }),
+      Payments.sum('amount', { where: { status: 'UNPAID' } }),
+      Payments.findAll({
+        attributes: [
+          'payment_method',
+          [fn('COUNT', col('id')), 'count'],
+          [fn('COALESCE', fn('SUM', col('amount')), 0), 'amount'],
+        ],
+        group: ['payment_method'],
+        raw: true,
+      }),
     ])
 
     return {
       users: {
         total: totalUsers,
         new_today: newUsersToday,
+        customers: customerCount,
+        owners: ownerCount,
+        admins: adminCount,
+        active: activeUsers,
+        locked: lockedUsers,
       },
       restaurants: {
         total: totalRestaurants,
@@ -93,12 +137,31 @@ export class AdminService {
         today: todayOrders,
         this_month: monthOrders,
         pending: pendingOrders,
+        preparing: preparingOrders,
+        delivering: deliveringOrders,
+        completed: completedOrders,
         cancelled: cancelledOrders,
       },
       revenue: {
         total: totalRevenue || 0,
         today: todayRevenue || 0,
         this_month: monthRevenue || 0,
+      },
+      reviews: {
+        total: totalReviews,
+        avg_rating: Number(Number(avgReviewResult?.avg || 0).toFixed(1)),
+        positive: positiveReviews,
+        negative: negativeReviews,
+      },
+      payments: {
+        total_gmv: totalGmv || 0,
+        paid_amount: paidAmount || 0,
+        unpaid_amount: unpaidAmount || 0,
+        methods: (paymentMethodsBreakdown || []).map((m) => ({
+          method: m.payment_method,
+          count: Number(m.count),
+          amount: Number(m.amount),
+        })),
       },
       total_reviews: totalReviews,
     }
@@ -192,7 +255,7 @@ export class AdminService {
    * Lấy danh sách người dùng (có tìm kiếm, lọc role, phân trang)
    */
   async getUsers({ search, role, status, page = 1, limit = 20 }) {
-    const where = {}
+    const where = { deleted_at: null }
     if (search) {
       where[Op.or] = [
         { full_name: { [Op.like]: `%${search}%` } },
@@ -214,7 +277,74 @@ export class AdminService {
       offset: (p - 1) * l,
     })
 
-    return { total: count, page: p, limit: l, data: rows }
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    // Tính toán số liệu thống kê động thực tế từ database cho từng user
+    const enriched = await Promise.all(
+      rows.map(async (u) => {
+        const item = u.toJSON()
+        if (item.role === 'RESTAURANT_OWNER' || item.role === 'OWNER') {
+          const restaurants = await Restaurants.findAll({
+            where: { owner_id: item.id },
+            attributes: ['id'],
+            raw: true,
+          })
+          const resIds = restaurants.map((r) => r.id)
+          if (resIds.length > 0) {
+            const monthStats = await Orders.findOne({
+              where: {
+                restaurant_id: { [Op.in]: resIds },
+                status: 'DELIVERED',
+                created_at: { [Op.gte]: startOfMonth },
+              },
+              attributes: [
+                [fn('COUNT', col('id')), 'order_count'],
+                [fn('COALESCE', fn('SUM', col('total_amount')), 0), 'revenue'],
+              ],
+              raw: true,
+            })
+            const totalStats = await Orders.findOne({
+              where: {
+                restaurant_id: { [Op.in]: resIds },
+                status: 'DELIVERED',
+              },
+              attributes: [
+                [fn('COUNT', col('id')), 'order_count'],
+                [fn('COALESCE', fn('SUM', col('total_amount')), 0), 'revenue'],
+              ],
+              raw: true,
+            })
+            item.month_orders = Number(monthStats?.order_count || 0)
+            item.month_revenue = Number(monthStats?.revenue || 0)
+            item.total_orders = Number(totalStats?.order_count || 0)
+            item.total_revenue = Number(totalStats?.revenue || 0)
+          } else {
+            item.month_orders = 0
+            item.month_revenue = 0
+            item.total_orders = 0
+            item.total_revenue = 0
+          }
+        } else if (item.role === 'CUSTOMER') {
+          const custStats = await Orders.findOne({
+            where: {
+              user_id: item.id,
+              status: 'DELIVERED',
+            },
+            attributes: [
+              [fn('COUNT', col('id')), 'order_count'],
+              [fn('COALESCE', fn('SUM', col('total_amount')), 0), 'total_spent'],
+            ],
+            raw: true,
+          })
+          item.total_orders = Number(custStats?.order_count || 0)
+          item.total_spent = Number(custStats?.total_spent || 0)
+        }
+        return item
+      })
+    )
+
+    return { total: count, page: p, limit: l, data: enriched }
   }
 
   /**
@@ -367,7 +497,7 @@ export class AdminService {
    * Lấy danh sách tất cả nhà hàng (có tìm kiếm, lọc, phân trang)
    */
   async getRestaurants({ search, status, page = 1, limit = 20 }) {
-    const where = {}
+    const where = { deleted_at: null }
     if (search) {
       where[Op.or] = [
         { name: { [Op.like]: `%${search}%` } },
@@ -394,7 +524,24 @@ export class AdminService {
       distinct: true,
     })
 
-    return { total: count, page: p, limit: l, data: rows }
+    const enriched = await Promise.all(
+      rows.map(async (r) => {
+        const item = r.toJSON()
+        const orderStats = await Orders.findOne({
+          where: { restaurant_id: item.id, status: 'DELIVERED' },
+          attributes: [
+            [fn('COUNT', col('id')), 'order_count'],
+            [fn('COALESCE', fn('SUM', col('total_amount')), 0), 'revenue'],
+          ],
+          raw: true,
+        })
+        item.total_orders = Number(orderStats?.order_count || 0)
+        item.total_revenue = Number(orderStats?.revenue || 0)
+        return item
+      })
+    )
+
+    return { total: count, page: p, limit: l, data: enriched }
   }
 
   /**
@@ -542,6 +689,44 @@ export class AdminService {
     return { message: 'Đã xóa nhà hàng thành công' }
   }
 
+  /**
+   * Admin cập nhật thông tin nhà hàng
+   */
+  async updateRestaurant(restaurantId, data) {
+    const restaurant = await Restaurants.findByPk(restaurantId)
+    if (!restaurant) {
+      const err = new Error('Không tìm thấy nhà hàng')
+      err.status = 404
+      throw err
+    }
+
+    const allowedFields = [
+      'name',
+      'address',
+      'phone_number',
+      'description',
+      'image',
+      'opening_time',
+      'closing_time',
+      'status',
+      'owner_id',
+    ]
+    allowedFields.forEach((f) => {
+      if (data[f] !== undefined) restaurant[f] = data[f]
+    })
+
+    if (data.owner_id) {
+      const owner = await Users.findByPk(data.owner_id)
+      if (owner && owner.role !== 'RESTAURANT_OWNER' && owner.role !== 'ADMIN') {
+        owner.role = 'RESTAURANT_OWNER'
+        await owner.save()
+      }
+    }
+
+    await restaurant.save()
+    return restaurant
+  }
+
   // ─────────────────────────────────────────────────────────────────
   // D. QUẢN LÝ ĐƠN HÀNG
   // ─────────────────────────────────────────────────────────────────
@@ -656,6 +841,26 @@ export class AdminService {
     })
 
     return this.getOrderDetail(orderId)
+  }
+
+  /**
+   * Admin xóa đơn hàng
+   */
+  async deleteOrder(orderId) {
+    const order = await Orders.findByPk(orderId)
+    if (!order) {
+      const err = new Error('Không tìm thấy đơn hàng')
+      err.status = 404
+      throw err
+    }
+
+    await sequelize.transaction(async (t) => {
+      await OrderItems.destroy({ where: { order_id: orderId }, transaction: t })
+      await Payments.destroy({ where: { order_id: orderId }, transaction: t })
+      await order.destroy({ transaction: t })
+    })
+
+    return { message: 'Đã xóa đơn hàng thành công' }
   }
 
   // ─────────────────────────────────────────────────────────────────

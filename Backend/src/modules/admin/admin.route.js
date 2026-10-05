@@ -19,11 +19,13 @@ import {
   getRestaurantDetail,
   setRestaurantStatus,
   createRestaurant,
+  updateRestaurant,
   deleteRestaurant,
   // Orders
   getAllOrders,
   getOrderDetail,
   forceUpdateOrderStatus,
+  deleteOrder,
   // Payments
   getAllPayments,
   // Reviews
@@ -444,6 +446,7 @@ router.post('/restaurants', createRestaurant)
  *         description: Nhà hàng còn đơn hàng chưa hoàn thành
  */
 router.get('/restaurants/:restaurantId', getRestaurantDetail)
+router.put('/restaurants/:restaurantId', updateRestaurant)
 router.delete('/restaurants/:restaurantId', deleteRestaurant)
 
 /**
@@ -585,6 +588,7 @@ router.get('/orders/:orderId', getOrderDetail)
  *         description: Thành công
  */
 router.patch('/orders/:orderId/status', forceUpdateOrderStatus)
+router.delete('/orders/:orderId', deleteOrder)
 
 // ═══════════════════════════════════════════════════════════════════
 // E. QUẢN LÝ THANH TOÁN

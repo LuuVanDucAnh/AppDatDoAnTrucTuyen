@@ -40,22 +40,28 @@ export function DashboardView() {
     fetchData();
   }, []);
 
-  // Numbers (with fallback to the exact numbers from the mock design if API is still fresh)
-  const totalRevenue = dashboard?.revenue?.total ?? 500000000;
-  const todayRevenue = dashboard?.revenue?.today ?? 3200000;
-  const monthRevenue = dashboard?.revenue?.this_month ?? 85000000;
+  // Numbers directly from Database
+  const totalRevenue = Number(dashboard?.revenue?.total || 0);
+  const todayRevenue = Number(dashboard?.revenue?.today || 0);
+  const monthRevenue = Number(dashboard?.revenue?.this_month || 0);
 
-  const totalOrders = dashboard?.orders?.total ?? 50000;
-  const todayOrders = dashboard?.orders?.today ?? 320;
-  const pendingOrders = dashboard?.orders?.pending ?? 45;
-  const cancelledOrders = dashboard?.orders?.cancelled ?? 120;
+  const totalOrders = Number(dashboard?.orders?.total || 0);
+  const todayOrders = Number(dashboard?.orders?.today || 0);
+  const pendingOrders = Number(dashboard?.orders?.pending || 0);
+  const preparingOrders = Number(dashboard?.orders?.preparing || 0);
+  const deliveringOrders = Number(dashboard?.orders?.delivering || 0);
+  const completedOrders = Number(dashboard?.orders?.completed || 0);
+  const cancelledOrders = Number(dashboard?.orders?.cancelled || 0);
 
-  const totalRestaurants = dashboard?.restaurants?.total ?? 150;
-  const openRestaurants = dashboard?.restaurants?.open ?? 120;
-  const closedRestaurants = dashboard?.restaurants?.closed ?? 30;
+  const totalRestaurants = Number(dashboard?.restaurants?.total || 0);
+  const openRestaurants = Number(dashboard?.restaurants?.open || 0);
+  const closedRestaurants = Number(dashboard?.restaurants?.closed || 0);
 
-  const totalUsers = dashboard?.users?.total ?? 5000;
-  const newUsersToday = dashboard?.users?.new_today ?? 12;
+  const totalUsers = Number(dashboard?.users?.total || 0);
+  const newUsersToday = Number(dashboard?.users?.new_today || 0);
+  const customerCount = Number(dashboard?.users?.customers || 0);
+  const ownerCount = Number(dashboard?.users?.owners || 0);
+  const adminCount = Number(dashboard?.users?.admins || 0);
 
   return (
     <div className="dashboard-content">
@@ -204,8 +210,10 @@ export function DashboardView() {
               <span>● Tạm đóng: <strong>{closedRestaurants}</strong></span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <span>Chờ duyệt Onboard:</span>
-              <span className="badge-onboard">4 hồ sơ</span>
+              <span>Tỉ lệ mở cửa:</span>
+              <span className="badge-onboard">
+                {totalRestaurants > 0 ? Math.round((openRestaurants / totalRestaurants) * 100) : 0}%
+              </span>
             </div>
           </div>
         </div>
@@ -228,10 +236,10 @@ export function DashboardView() {
           <div className="card-footer-info">
             <div>
               Hôm nay: <strong style={{ color: '#16a34a' }}>+{newUsersToday} mới</strong>{' '}
-              &nbsp;•&nbsp; 4.8★ (12k)
+              &nbsp;•&nbsp; {dashboard?.reviews?.avg_rating || 5}★ ({dashboard?.reviews?.total || 0} đánh giá)
             </div>
             <div style={{ color: '#64748b' }}>
-              4.850 Khách • 140 Chủ quán • 10 Admin
+              {customerCount} Khách • {ownerCount} Chủ quán • {adminCount} Admin
             </div>
           </div>
         </div>
@@ -336,7 +344,7 @@ export function DashboardView() {
         <div className="panel-card">
           <div className="panel-card-header">
             <div className="panel-title">
-              <h3>Trạng thái Đơn hôm nay</h3>
+              <h3>Trạng thái Đơn hàng</h3>
             </div>
             <span
               style={{
@@ -348,7 +356,7 @@ export function DashboardView() {
                 borderRadius: 12,
               }}
             >
-              320 đơn
+              {totalOrders} đơn
             </span>
           </div>
 
@@ -364,32 +372,38 @@ export function DashboardView() {
                   stroke="#f1f5f9"
                   strokeWidth="11"
                 />
-                {/* Segment: Completed 78% (green) */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="38"
-                  fill="none"
-                  stroke="#059669"
-                  strokeWidth="11"
-                  strokeDasharray="186 238"
-                  strokeDashoffset="60"
-                  strokeLinecap="round"
-                />
-                {/* Segment: Delivering 12% (orange) */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="38"
-                  fill="none"
-                  stroke="#ea580c"
-                  strokeWidth="11"
-                  strokeDasharray="28 238"
-                  strokeDashoffset="246"
-                />
+                {/* Segment: Completed */}
+                {totalOrders > 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="38"
+                    fill="none"
+                    stroke="#059669"
+                    strokeWidth="11"
+                    strokeDasharray={`${Math.max(1, (completedOrders / totalOrders) * 238)} 238`}
+                    strokeDashoffset="60"
+                    strokeLinecap="round"
+                  />
+                )}
+                {/* Segment: Delivering */}
+                {totalOrders > 0 && deliveringOrders > 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="38"
+                    fill="none"
+                    stroke="#ea580c"
+                    strokeWidth="11"
+                    strokeDasharray={`${(deliveringOrders / totalOrders) * 238} 238`}
+                    strokeDashoffset={String(60 - (completedOrders / totalOrders) * 238)}
+                  />
+                )}
               </svg>
               <div className="donut-text-center">
-                <span className="pct">78%</span>
+                <span className="pct">
+                  {totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0}%
+                </span>
                 <span className="sub">Hoàn tất</span>
               </div>
             </div>
@@ -401,7 +415,9 @@ export function DashboardView() {
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#059669' }} />
                 <span>Đã giao thành công (COMPLETED)</span>
               </div>
-              <span className="right">250 đơn (78%)</span>
+              <span className="right">
+                {completedOrders} đơn ({totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0}%)
+              </span>
             </div>
 
             <div className="donut-status-item">
@@ -409,7 +425,9 @@ export function DashboardView() {
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ea580c' }} />
                 <span>Đang giao hàng (DELIVERING)</span>
               </div>
-              <span className="right">38 đơn (12%)</span>
+              <span className="right">
+                {deliveringOrders} đơn ({totalOrders > 0 ? Math.round((deliveringOrders / totalOrders) * 100) : 0}%)
+              </span>
             </div>
 
             <div className="donut-status-item">
@@ -417,16 +435,32 @@ export function DashboardView() {
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ca8a04' }} />
                 <span>Bếp đang nấu (PREPARING)</span>
               </div>
-              <span className="right">19 đơn (6%)</span>
+              <span className="right">
+                {preparingOrders} đơn ({totalOrders > 0 ? Math.round((preparingOrders / totalOrders) * 100) : 0}%)
+              </span>
             </div>
 
             <div className="donut-status-item">
               <div className="left">
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#78350f' }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0284c7' }} />
                 <span>Chờ nhận đơn (PENDING)</span>
               </div>
-              <span className="right">13 đơn (4%)</span>
+              <span className="right">
+                {pendingOrders} đơn ({totalOrders > 0 ? Math.round((pendingOrders / totalOrders) * 100) : 0}%)
+              </span>
             </div>
+
+            {cancelledOrders > 0 && (
+              <div className="donut-status-item">
+                <div className="left">
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#dc2626' }} />
+                  <span>Đã huỷ (CANCELLED)</span>
+                </div>
+                <span className="right">
+                  {cancelledOrders} đơn ({totalOrders > 0 ? Math.round((cancelledOrders / totalOrders) * 100) : 0}%)
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -441,18 +475,15 @@ export function DashboardView() {
             <div className="panel-title">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <h3>Đơn hàng cần Giám sát & Can thiệp</h3>
-                <span className="alert-badge">3 Đơn bất thường</span>
+                <span className="alert-badge">
+                  {pendingOrders + deliveringOrders > 0
+                    ? `${pendingOrders + deliveringOrders} Đơn đang luân chuyển`
+                    : 'Hệ thống thông suốt'}
+                </span>
               </div>
               <p>Quyền can thiệp trạng thái (PATCH /orders/:id/status) áp dụng khi shipper gặp sự cố hoặc quán trễ hẹn.</p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                className="btn-action-sm"
-                style={{ display: 'flex', alignItems: 'center', gap: 4 }}
-              >
-                <Filter size={13} />
-                <span>Lọc trạng thái</span>
-              </button>
               <button
                 className="btn-action-sm"
                 onClick={fetchData}
@@ -500,7 +531,7 @@ export function DashboardView() {
                     <td style={{ textAlign: 'right' }}>
                       <button
                         className="btn-action-sm btn-force-update"
-                        onClick={() => alert(`Can thiệp đơn #${ord.id}: Mở màn hình Quản lý Đơn hàng để Force Update trạng thái.`)}
+                        onClick={() => alert(`Can thiệp đơn #${ord.id}: Mở tab Quản lý Đơn hàng để chuyển trạng thái.`)}
                       >
                         Can thiệp
                       </button>
@@ -508,48 +539,11 @@ export function DashboardView() {
                   </tr>
                 ))
               ) : (
-                // Sample realistic rows matching the mockup
-                <>
-                  <tr>
-                    <td><strong style={{ color: '#ea580c' }}>#84920</strong></td>
-                    <td>
-                      <div>Nguyễn Thị Bích (Giao chậm 48p)</div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>0918.234.567</div>
-                    </td>
-                    <td>Cơm Tấm Sài Gòn 1985</td>
-                    <td><strong>185.000đ</strong></td>
-                    <td><span className="badge-pill pill-delivering">DELIVERING</span></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button className="btn-action-sm btn-force-update">Đổi Shipper</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><strong style={{ color: '#ea580c' }}>#84918</strong></td>
-                    <td>
-                      <div>Trần Văn Mạnh (Chờ quán 25p)</div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>0977.123.888</div>
-                    </td>
-                    <td>Trà Sữa KOI Thé - Lê Văn Sỹ</td>
-                    <td><strong>92.000đ</strong></td>
-                    <td><span className="badge-pill pill-pending">PENDING</span></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button className="btn-action-sm btn-force-update">Hủy & Hoàn tiền</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><strong style={{ color: '#ea580c' }}>#84912</strong></td>
-                    <td>
-                      <div>Hoàng Minh Tuấn</div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>0903.445.667</div>
-                    </td>
-                    <td>Phở Bò Gia Truyền Bát Đàn</td>
-                    <td><strong>240.000đ</strong></td>
-                    <td><span className="badge-pill pill-preparing">PREPARING</span></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button className="btn-action-sm btn-force-update">Giục quán nấu</button>
-                    </td>
-                  </tr>
-                </>
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                    Không có đơn hàng nào cần can thiệp tại thời điểm này.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -564,64 +558,70 @@ export function DashboardView() {
                 <h3>Cảnh báo & Rủi ro sàn</h3>
               </div>
             </div>
-            <span className="alert-badge">3 Cần xử lý</span>
+            <span className="alert-badge">
+              {pendingOrders + cancelledOrders > 0 ? `${pendingOrders + cancelledOrders} Cần chú ý` : 'An toàn'}
+            </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div
-              style={{
-                padding: 12,
-                borderRadius: 10,
-                background: '#fff7ed',
-                border: '1px solid #fed7aa',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-              }}
-            >
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#c2410c' }}>
-                Quán hủy đơn bất thường ({'>'} 15%)
+            {pendingOrders > 0 && (
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 10,
+                  background: '#fff7ed',
+                  border: '1px solid #fed7aa',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#c2410c' }}>
+                  Đơn hàng chờ tiếp nhận ({pendingOrders} đơn)
+                </div>
+                <div style={{ fontSize: '0.76rem', color: '#78350f' }}>
+                  Có {pendingOrders} đơn hàng đang ở trạng thái PENDING chờ quán xác nhận và shipper nhận giao.
+                </div>
               </div>
-              <div style={{ fontSize: '0.76rem', color: '#78350f' }}>
-                Nhà hàng <strong>Gà Rán Chivago</strong> đã từ chối 6 đơn liên tiếp trong 30 phút qua. Cần kiểm tra mở/đóng quán.
+            )}
+
+            {cancelledOrders > 0 && (
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 10,
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#dc2626' }}>
+                  Đơn đã huỷ ({cancelledOrders} đơn)
+                </div>
+                <div style={{ fontSize: '0.76rem', color: '#7f1d1d' }}>
+                  Hệ thống ghi nhận {cancelledOrders} đơn huỷ. Kiểm tra lý do huỷ từ phía khách hàng hoặc nhà hàng.
+                </div>
               </div>
-            </div>
+            )}
 
             <div
               style={{
                 padding: 12,
                 borderRadius: 10,
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 4,
               }}
             >
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#dc2626' }}>
-                2 Đơn giao trễ vượt mức 45 phút
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#15803d' }}>
+                Hạ tầng thanh toán &amp; Đối soát
               </div>
-              <div style={{ fontSize: '0.76rem', color: '#7f1d1d' }}>
-                Khu vực Cầu Giấy đang mưa lớn gây chậm trễ. Đã gửi tin nhắn xin lỗi và voucher cho khách.
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: 12,
-                borderRadius: 10,
-                background: '#f0f9ff',
-                border: '1px solid #bae6fd',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-              }}
-            >
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0369a1' }}>
-                Bảo trì Cổng Thanh Toán VNPay
-              </div>
-              <div style={{ fontSize: '0.76rem', color: '#0c4a6e' }}>
-                Đối tác VNPay thông báo bảo trì nâng cấp lúc 02:00 - 03:00 sáng mai. Tiền mặt & MoMo vẫn nhận bình thường.
+              <div style={{ fontSize: '0.76rem', color: '#166534' }}>
+                Cổng thanh toán MoMo, VNPay và đối soát tiền mặt Shipper COD hoạt động bình thường, không có lỗi gateway.
               </div>
             </div>
           </div>

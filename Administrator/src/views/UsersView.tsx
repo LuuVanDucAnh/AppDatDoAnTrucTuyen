@@ -7,6 +7,7 @@ import {
   Lock,
   Unlock,
   Trash2,
+  Pencil,
   X,
   Mail,
   Phone,
@@ -21,12 +22,13 @@ import {
   AlertCircle,
   ExternalLink,
 } from 'lucide-react';
-import { usersApi } from '../services/api';
-import type { AdminUser, UserRole } from '../services/types';
+import { usersApi, dashboardApi } from '../services/api';
+import type { AdminUser, UserRole, PlatformDashboard } from '../services/types';
 
 export function UsersView() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dashboard, setDashboard] = useState<PlatformDashboard | null>(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('');
   const [statusFilter, setStatusFilter] = useState<number | ''>('');
@@ -55,9 +57,21 @@ export function UsersView() {
     email: '',
     phone_number: '',
     password: '',
-    role: 'ADMIN' as UserRole,
+    role: 'CUSTOMER' as UserRole,
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Edit User Form & Modal
+  const [editUser, setEditUser] = useState<AdminUser | null>(null);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    email: '',
+    phone_number: '',
+    role: 'CUSTOMER' as UserRole,
+    status: 1,
+    password: '',
+  });
+  const [updatingUser, setUpdatingUser] = useState(false);
 
   // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -82,6 +96,7 @@ export function UsersView() {
         setTotalPages(res.meta.totalPages || 1);
         setTotalCount(res.meta.total || 0);
       }
+      dashboardApi.getDashboard().then(setDashboard).catch(() => {});
     } catch (err: any) {
       showToast('error', err?.message || 'Không thể nạp danh sách người dùng.');
     } finally {
@@ -177,6 +192,45 @@ export function UsersView() {
     }
   };
 
+  const handleOpenEdit = (user: AdminUser) => {
+    setEditUser(user);
+    setEditForm({
+      full_name: user.full_name,
+      email: user.email || '',
+      phone_number: user.phone_number,
+      role: (user.role === 'OWNER' ? 'RESTAURANT_OWNER' : user.role) as UserRole,
+      status: user.status,
+      password: '',
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editUser) return;
+    if (!editForm.full_name.trim() || !editForm.phone_number.trim()) {
+      showToast('error', 'Họ tên và Số điện thoại không được để trống.');
+      return;
+    }
+    try {
+      setUpdatingUser(true);
+      await usersApi.updateUser(editUser.id, {
+        full_name: editForm.full_name.trim(),
+        email: editForm.email.trim() || undefined,
+        phone_number: editForm.phone_number.trim(),
+        role: editForm.role,
+        status: Number(editForm.status),
+        password: editForm.password ? editForm.password : undefined,
+      });
+      showToast('success', `Đã cập nhật thông tin người dùng "${editForm.full_name}" thành công!`);
+      setEditUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      showToast('error', err?.message || 'Không thể cập nhật người dùng.');
+    } finally {
+      setUpdatingUser(false);
+    }
+  };
+
   const handleDeleteUser = async (user: AdminUser) => {
     if (user.role === 'ADMIN') {
       showToast('error', 'Không thể xóa tài khoản Quản trị viên.');
@@ -193,11 +247,13 @@ export function UsersView() {
     }
   };
 
-  // Helper stats matching the exact design
-  const customerCount = users.filter((u) => u.role === 'CUSTOMER').length || 4850;
-  const ownerCount = users.filter((u) => u.role === 'RESTAURANT_OWNER' || (u.role as string) === 'OWNER').length || 140;
-  const adminCount = users.filter((u) => u.role === 'ADMIN').length || 10;
-  const totalUserCount = totalCount || 5000;
+  // Helper stats directly from Database dashboard & users
+  const customerCount = dashboard?.users?.customers ?? users.filter((u) => u.role === 'CUSTOMER').length;
+  const ownerCount = dashboard?.users?.owners ?? users.filter((u) => u.role === 'RESTAURANT_OWNER' || (u.role as string) === 'OWNER').length;
+  const adminCount = dashboard?.users?.admins ?? users.filter((u) => u.role === 'ADMIN').length;
+  const totalUserCount = dashboard?.users?.total ?? totalCount;
+  const activeUserCount = dashboard?.users?.active ?? users.filter((u) => u.status === 1).length;
+  const lockedUserCount = dashboard?.users?.locked ?? users.filter((u) => u.status === 0).length;
 
   return (
     <div className="dashboard-content">
@@ -272,7 +328,7 @@ export function UsersView() {
             onClick={() => setShowAddModal(true)}
           >
             <Plus size={16} />
-            <span>+ Thêm Quản trị viên mới</span>
+            <span>+ Thêm người dùng mới</span>
           </button>
         </div>
       </div>
@@ -291,11 +347,11 @@ export function UsersView() {
           </div>
           <div className="card-big-value" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span>{Number(totalUserCount).toLocaleString('vi-VN')}</span>
-            <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>+8.4%</span>
+            <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Hoạt động</span>
           </div>
           <div className="card-footer-info" style={{ display: 'flex', flexDirection: 'row', gap: 12 }}>
-            <span style={{ color: '#059669', fontWeight: 600 }}>● 4.965 Đang mở</span>
-            <span style={{ color: '#dc2626', fontWeight: 600 }}>● 35 Đã khoá</span>
+            <span style={{ color: '#059669', fontWeight: 600 }}>● {activeUserCount} Đang mở</span>
+            <span style={{ color: '#dc2626', fontWeight: 600 }}>● {lockedUserCount} Đã khoá</span>
           </div>
         </div>
 
@@ -310,11 +366,11 @@ export function UsersView() {
           <div className="card-big-value" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span>{Number(customerCount).toLocaleString('vi-VN')}</span>
             <span style={{ fontSize: '0.72rem', background: '#f1f5f9', color: '#475569', padding: '2px 7px', borderRadius: 4, fontWeight: 700 }}>
-              97.0%
+              {totalUserCount > 0 ? Math.round((customerCount / totalUserCount) * 100) : 0}%
             </span>
           </div>
           <div className="card-footer-info">
-            <div>3.420 có phát sinh đơn • Tỉ lệ kích hoạt <strong>70.5%</strong></div>
+            <div>{customerCount} tài khoản khách hàng mua sắm trên sàn</div>
           </div>
         </div>
 
@@ -328,17 +384,19 @@ export function UsersView() {
           </div>
           <div className="card-big-value" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span>{ownerCount}</span>
-            <span style={{ fontSize: '0.72rem', color: '#ca8a04', fontWeight: 700 }}>2.8% sàn</span>
+            <span style={{ fontSize: '0.72rem', color: '#ca8a04', fontWeight: 700 }}>
+              {totalUserCount > 0 ? Math.round((ownerCount / totalUserCount) * 100) : 0}% sàn
+            </span>
           </div>
           <div className="card-footer-info">
-            <div>128 gian hàng trực tuyến • 12 quán chờ mở</div>
+            <div>{dashboard?.restaurants?.total ?? 11} gian hàng đối tác kinh doanh</div>
           </div>
         </div>
 
         {/* Card 4: Quản trị & Kiểm duyệt */}
         <div className="metric-card card-users">
           <div className="card-top">
-            <span className="card-top-title">Quản trị & Kiểm duyệt</span>
+            <span className="card-top-title">Quản trị &amp; Kiểm duyệt</span>
             <div className="card-top-icon" style={{ background: '#e9d5ff', color: '#7e22ce' }}>
               <ShieldCheck size={19} />
             </div>
@@ -346,11 +404,11 @@ export function UsersView() {
           <div className="card-big-value" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span>{adminCount}</span>
             <span style={{ fontSize: '0.72rem', background: '#ecfdf5', color: '#059669', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
-              Super Admin + Staff
+              Super Admin
             </span>
           </div>
           <div className="card-footer-info" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-            <span>🔒 Miễn nhiễm khoá tự động</span>
+            <span>🔒 Toàn quyền quản trị hệ thống</span>
             <strong style={{ color: '#7e22ce' }}>RBAC Strict</strong>
           </div>
         </div>
@@ -692,18 +750,26 @@ export function UsersView() {
                             <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>Quyền Quản trị viên</div>
                             <div style={{ fontSize: '0.74rem', color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4 }}>
                               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16a34a' }} />
-                              Online 10 phút trước
+                              Quản trị toàn sàn
                             </div>
                           </div>
                         ) : isOwner ? (
                           <div>
-                            <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>120 đơn tháng này</div>
-                            <div style={{ fontSize: '0.74rem', color: '#c2410c' }}>Doanh số: 34.500.000đ</div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                              {u.month_orders ?? 0} đơn tháng này
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#c2410c' }}>
+                              Doanh số: {Number(u.month_revenue ?? 0).toLocaleString('vi-VN')}đ
+                            </div>
                           </div>
                         ) : (
                           <div>
-                            <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>48 đơn hoàn tất (1.250 pt)</div>
-                            <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Đăng nhập: 25 phút trước</div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                              {u.total_orders ?? 0} đơn hoàn tất
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                              Chi tiêu: {Number(u.total_spent ?? 0).toLocaleString('vi-VN')}đ
+                            </div>
                           </div>
                         )}
                       </td>
@@ -711,6 +777,16 @@ export function UsersView() {
                       {/* Thao tác */}
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: 6 }}>
+                          {/* Sửa thông tin */}
+                          <button
+                            className="btn-icon"
+                            title="Sửa thông tin người dùng"
+                            onClick={() => handleOpenEdit(u)}
+                            style={{ color: '#2563eb', background: '#eff6ff' }}
+                          >
+                            <Pencil size={15} />
+                          </button>
+
                           {/* Toggle Lock Status */}
                           <button
                             className="btn-icon"
@@ -801,7 +877,7 @@ export function UsersView() {
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Thêm Quản Trị Viên Mới</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Thêm Người Dùng Mới</h3>
               <button className="btn-icon" onClick={() => setShowAddModal(false)}>
                 <X size={18} />
               </button>
@@ -834,7 +910,7 @@ export function UsersView() {
                     <label>Email đăng nhập *</label>
                     <input
                       type="email"
-                      placeholder="admin.name@warmfeast.vn"
+                      placeholder="admin.name@food.vn"
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
                       required
@@ -873,7 +949,7 @@ export function UsersView() {
                   Hủy
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Đang tạo...' : 'Tạo Quản Trị Viên'}
+                  {submitting ? 'Đang tạo...' : 'Tạo Người Dùng'}
                 </button>
               </div>
             </form>
@@ -1016,6 +1092,103 @@ export function UsersView() {
                 Đóng
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: CHỈNH SỬA THÔNG TIN NGƯỜI DÙNG
+         ───────────────────────────────────────────────────────────── */}
+      {editUser && (
+        <div className="modal-overlay" onClick={() => setEditUser(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Pencil size={18} color="#2563eb" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Chỉnh Sửa Thông Tin Người Dùng</h3>
+              </div>
+              <button className="btn-icon" onClick={() => setEditUser(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Họ và tên *</label>
+                  <input
+                    type="text"
+                    value={editForm.full_name}
+                    onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div className="form-group">
+                    <label>Số điện thoại *</label>
+                    <input
+                      type="text"
+                      value={editForm.phone_number}
+                      onChange={(e) => setEditForm({ ...editForm, phone_number: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div className="form-group">
+                    <label>Vai trò (Role)</label>
+                    <select
+                      className="select-styled"
+                      value={editForm.role}
+                      onChange={(e) => setEditForm({ ...editForm, role: e.target.value as UserRole })}
+                    >
+                      <option value="CUSTOMER">Khách hàng (CUSTOMER)</option>
+                      <option value="RESTAURANT_OWNER">Chủ quán ăn (RESTAURANT_OWNER)</option>
+                      <option value="ADMIN">Quản trị viên (ADMIN)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Trạng thái tài khoản</label>
+                    <select
+                      className="select-styled"
+                      value={editForm.status}
+                      onChange={(e) => setEditForm({ ...editForm, status: Number(e.target.value) })}
+                    >
+                      <option value={1}>🟢 Đang hoạt động (Active)</option>
+                      <option value={0}>🔴 Đã bị khóa (Locked)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Mật khẩu mới (Để trống nếu giữ nguyên)</label>
+                  <input
+                    type="password"
+                    placeholder="Nhập mật khẩu mới nếu muốn đổi..."
+                    value={editForm.password}
+                    onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setEditUser(null)}>
+                  Hủy
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={updatingUser}>
+                  {updatingUser ? 'Đang lưu...' : 'Lưu Thay Đổi'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

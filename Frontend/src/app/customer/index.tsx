@@ -21,7 +21,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 
 import { Order, useApp } from '@/context/AppContext';
 import { foodApi, restaurantApi, searchApi } from '@/services/api';
-import { DELIVERY_FEE, resolveImageUrl } from '@/services/config';
+import { DELIVERY_FEE, DEFAULT_FOOD_IMAGE, resolveImageUrl } from '@/services/config';
 import type { ApiFood, ApiRestaurant } from '@/services/types';
 
 const { width, height } = Dimensions.get('window');
@@ -137,7 +137,7 @@ function toFoodCard(f: ApiFood): FoodCard {
     id: f.id,
     name: f.name,
     price: Number(f.price) || 0,
-    image: resolveImageUrl(f.image),
+    image: resolveImageUrl(f.image, DEFAULT_FOOD_IMAGE),
     restaurantId: restaurant?.id ?? f.category?.restaurant_id ?? 0,
     restaurantName: restaurant?.name ?? '',
     isOpen: restaurant ? restaurant.status === 'OPEN' : true,

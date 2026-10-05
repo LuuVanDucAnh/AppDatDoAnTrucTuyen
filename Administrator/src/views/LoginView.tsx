@@ -74,10 +74,10 @@ export function LoginView({ onSuccess }: LoginViewProps) {
           </div>
           <div>
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
-              Quản Trị Viên Sàn
+              Quản Trị Viên Food
             </h1>
             <p style={{ fontSize: '0.88rem', color: '#94a3b8', marginTop: 4 }}>
-              Hệ thống quản lý đặt đồ ăn trực tuyến (Admin Portal)
+              Hệ thống quản lý sàn đặt đồ ăn Food (Admin Portal)
             </p>
           </div>
         </div>

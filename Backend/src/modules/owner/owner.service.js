@@ -139,10 +139,10 @@ export class OwnerService {
    */
   async updateOrderStatus(restaurantId, orderId, newStatus) {
     const validTransitions = {
-      PENDING: ['CONFIRMED', 'CANCELLED'],
-      CONFIRMED: ['PREPARING', 'CANCELLED'],
-      PREPARING: ['DELIVERING'],
-      DELIVERING: ['DELIVERED'],
+      PENDING: ['CONFIRMED', 'PREPARING', 'CANCELLED'],
+      CONFIRMED: ['PREPARING', 'DELIVERING', 'CANCELLED'],
+      PREPARING: ['DELIVERING', 'CANCELLED'],
+      DELIVERING: ['DELIVERED', 'CANCELLED'],
     }
 
     const order = await Orders.findOne({

@@ -38,6 +38,11 @@ export interface AdminUser {
   status: number; // 1 = active, 0 = locked
   created_at: string;
   updated_at?: string;
+  month_orders?: number;
+  month_revenue?: number;
+  total_orders?: number;
+  total_revenue?: number;
+  total_spent?: number;
   addresses?: Array<{
     id: number;
     receiver_name: string;
@@ -169,6 +174,11 @@ export interface PlatformDashboard {
   users: {
     total: number;
     new_today: number;
+    customers?: number;
+    owners?: number;
+    admins?: number;
+    active?: number;
+    locked?: number;
   };
   restaurants: {
     total: number;
@@ -180,12 +190,31 @@ export interface PlatformDashboard {
     today: number;
     this_month: number;
     pending: number;
+    preparing?: number;
+    delivering?: number;
+    completed?: number;
     cancelled: number;
   };
   revenue: {
     total: number | string;
     today: number | string;
     this_month: number | string;
+  };
+  reviews?: {
+    total: number;
+    avg_rating: number;
+    positive: number;
+    negative: number;
+  };
+  payments?: {
+    total_gmv: number;
+    paid_amount: number;
+    unpaid_amount: number;
+    methods: Array<{
+      method: string;
+      count: number;
+      amount: number;
+    }>;
   };
   total_reviews: number;
 }
@@ -199,7 +228,8 @@ export interface TopRestaurantStat {
 }
 
 export interface RevenueStatPoint {
-  date: string;
+  date?: string;
+  period?: string;
   order_count: number;
-  revenue: number | string;
+  revenue: number;
 }

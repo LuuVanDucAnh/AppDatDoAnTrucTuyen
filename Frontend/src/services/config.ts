@@ -42,13 +42,25 @@ export const DELIVERY_FEE = 15000;
 /** Địa chỉ trang Web Quản Trị dành cho Quản trị viên sàn (Admin Portal) */
 export const ADMIN_WEB_URL = process.env.EXPO_PUBLIC_ADMIN_WEB_URL || 'http://localhost:5173';
 
+export const DEFAULT_RESTAURANT_IMAGE =
+  'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80';
+export const DEFAULT_FOOD_IMAGE =
+  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80';
+
 /**
  * Ảnh do Backend upload trả về đường dẫn tương đối (/uploads/...),
  * hàm này ghép thành URL đầy đủ để <Image> tải được.
  */
-export function resolveImageUrl(image?: string | null): string | undefined {
-  if (!image) return undefined;
-  if (/^https?:\/\//i.test(image)) return image;
-  if (image.startsWith('/')) return `${SERVER_URL}${image}`;
-  return `${SERVER_URL}/${image}`;
+export function resolveImageUrl(
+  image?: string | null,
+  fallback: string = DEFAULT_RESTAURANT_IMAGE,
+): string {
+  if (!image || typeof image !== 'string') return fallback;
+  const trimmed = image.trim();
+  if (trimmed === '') return fallback;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/uploads/')) return `${SERVER_URL}${trimmed}`;
+  if (trimmed.startsWith('uploads/')) return `${SERVER_URL}/${trimmed}`;
+  // Nếu là chuỗi file name tương đối cũ không nằm trong thư mục uploads (ví dụ: 'pho-viet.jpg')
+  return fallback;
 }

@@ -151,6 +151,16 @@ export const createRestaurant = async (req, res, next) => {
   }
 }
 
+export const updateRestaurant = async (req, res, next) => {
+  try {
+    const data = await service.updateRestaurant(req.params.restaurantId, req.body)
+    sendSuccess(res, 'Cập nhật thông tin nhà hàng thành công', data)
+  } catch (err) {
+    if (err.status) return sendError(res, err.message, err.status)
+    next(err)
+  }
+}
+
 export const deleteRestaurant = async (req, res, next) => {
   try {
     const data = await service.deleteRestaurant(req.params.restaurantId)
@@ -190,6 +200,16 @@ export const forceUpdateOrderStatus = async (req, res, next) => {
     if (!status) return sendError(res, 'Vui lòng cung cấp trạng thái mới', 400)
     const data = await service.forceUpdateOrderStatus(req.params.orderId, status)
     sendSuccess(res, `Đã cập nhật trạng thái đơn hàng thành "${status}"`, data)
+  } catch (err) {
+    if (err.status) return sendError(res, err.message, err.status)
+    next(err)
+  }
+}
+
+export const deleteOrder = async (req, res, next) => {
+  try {
+    const data = await service.deleteOrder(req.params.orderId)
+    sendSuccess(res, data.message)
   } catch (err) {
     if (err.status) return sendError(res, err.message, err.status)
     next(err)
