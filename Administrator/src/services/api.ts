@@ -297,6 +297,7 @@ export const restaurantsApi = {
 // ── Orders API ────────────────────────────────────────────────────────────────
 export const ordersApi = {
   async getOrders(params?: {
+    search?: string;
     status?: OrderStatus | '';
     restaurant_id?: number;
     from?: string;
@@ -305,6 +306,7 @@ export const ordersApi = {
     limit?: number;
   }): Promise<ApiEnvelope<AdminOrder[]>> {
     const q = new URLSearchParams();
+    if (params?.search) q.append('search', params.search);
     if (params?.status) q.append('status', params.status);
     if (params?.restaurant_id) q.append('restaurant_id', String(params.restaurant_id));
     if (params?.from) q.append('from', params.from);
@@ -359,12 +361,14 @@ export const paymentsApi = {
 // ── Reviews API ───────────────────────────────────────────────────────────────
 export const reviewsApi = {
   async getReviews(params?: {
+    search?: string;
     restaurant_id?: number;
     rating?: number;
     page?: number;
     limit?: number;
   }): Promise<ApiEnvelope<AdminReview[]>> {
     const q = new URLSearchParams();
+    if (params?.search) q.append('search', params.search);
     if (params?.restaurant_id) q.append('restaurant_id', String(params.restaurant_id));
     if (params?.rating) q.append('rating', String(params.rating));
     if (params?.page) q.append('page', String(params.page));

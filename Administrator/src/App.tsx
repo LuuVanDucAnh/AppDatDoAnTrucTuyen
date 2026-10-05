@@ -40,8 +40,43 @@ export function App() {
     return getStoredUser();
   });
 
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  const getTabFromLocation = (): NavTab => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab') as NavTab;
+      if (tabParam && ['dashboard', 'users', 'restaurants', 'orders', 'payments', 'reviews', 'settings'].includes(tabParam)) {
+        return tabParam;
+      }
+      const hash = window.location.hash.replace('#', '') as NavTab;
+      if (hash && ['dashboard', 'users', 'restaurants', 'orders', 'payments', 'reviews', 'settings'].includes(hash)) {
+        return hash;
+      }
+    } catch {
+      // ignore
+    }
+    return 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState<NavTab>(getTabFromLocation);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const newTab = getTabFromLocation();
+      setActiveTab(newTab);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    window.addEventListener('popstate', onHashChange);
+    return () => {
+      window.removeEventListener('hashchange', onHashChange);
+      window.removeEventListener('popstate', onHashChange);
+    };
+  }, []);
+
+  const handleSelectTab = (tab: NavTab) => {
+    setActiveTab(tab);
+    window.location.hash = tab;
+  };
 
   useEffect(() => {
     const handleUnauthorized = () => {
@@ -69,7 +104,7 @@ export function App() {
     <div className="app-container">
       <Sidebar
         activeTab={activeTab}
-        onSelectTab={(tab) => setActiveTab(tab)}
+        onSelectTab={handleSelectTab}
         currentUser={currentUser}
         onLogout={handleLogout}
       />

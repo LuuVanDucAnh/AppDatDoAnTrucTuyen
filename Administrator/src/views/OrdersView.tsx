@@ -48,7 +48,7 @@ export function OrdersView() {
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('');
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'PREPARING' | 'DELIVERING' | 'DELAYED' | 'DISPUTED'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'PREPARING' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED'>('ALL');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -109,8 +109,11 @@ export function OrdersView() {
       if (activeTab === 'PENDING') statusQuery = 'PENDING';
       if (activeTab === 'PREPARING') statusQuery = 'PREPARING';
       if (activeTab === 'DELIVERING') statusQuery = 'DELIVERING';
+      if (activeTab === 'DELIVERED') statusQuery = 'DELIVERED';
+      if (activeTab === 'CANCELLED') statusQuery = 'CANCELLED';
 
       const res = await ordersApi.getOrders({
+        search: search.trim() || undefined,
         status: statusQuery,
         page,
         limit: 15,
@@ -126,6 +129,12 @@ export function OrdersView() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    fetchOrders();
   };
 
   useEffect(() => {
@@ -180,6 +189,13 @@ export function OrdersView() {
       showToast('success', `🛵 Đang tìm và điều phối Shipper dự phòng gần nhất cho đơn #${orderCode}...`);
     }
   };
+
+  const orderTotal = dashboard?.orders?.total ?? totalCount;
+  const orderPending = dashboard?.orders?.pending ?? 0;
+  const orderPreparing = dashboard?.orders?.preparing ?? 0;
+  const orderDelivering = dashboard?.orders?.delivering ?? 0;
+  const orderDelivered = dashboard?.orders?.completed ?? 0;
+  const orderCancelled = dashboard?.orders?.cancelled ?? 0;
 
   return (
     <div className="dashboard-content">
@@ -576,89 +592,89 @@ export function OrdersView() {
           5. ORDERS MANAGEMENT TABLE & REALTIME FILTERS
          ───────────────────────────────────────────────────────────── */}
       <div className="glass-panel">
-        <div className="filter-bar">
-          <div className="search-input-group">
-            <Search size={16} className="search-icon" />
-            <input
-              type="text"
-              className="input-styled"
-              placeholder="Tìm theo Mã đơn (#DH-xxxx), Tên khách hàng, SĐT, Quán ăn..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+            <div className="filter-bar">
+              <form onSubmit={handleSearchSubmit} className="search-input-group">
+                <Search size={16} className="search-icon" />
+                <input
+                  type="text"
+                  className="input-styled"
+                  placeholder="Tìm theo Mã đơn (#DH-xxxx), Tên khách hàng, SĐT, Quán ăn..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </form>
 
-          {/* Quick Filter Tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginRight: 4 }}>Lọc nhanh:</span>
-            <button
-              className={`filter-chip ${activeTab === 'ALL' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('ALL'); setPage(1); }}
-            >
-              Tất cả (142)
-            </button>
-            <button
-              className={`filter-chip ${activeTab === 'PENDING' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('PENDING'); setPage(1); }}
-            >
-              Chờ nhận (32)
-            </button>
-            <button
-              className={`filter-chip ${activeTab === 'PREPARING' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('PREPARING'); setPage(1); }}
-            >
-              Đang nấu (58)
-            </button>
-            <button
-              className={`filter-chip ${activeTab === 'DELIVERING' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('DELIVERING'); setPage(1); }}
-            >
-              Đang giao (52)
-            </button>
-            <button
-              className={`filter-chip ${activeTab === 'DELAYED' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('DELAYED'); setPage(1); }}
-            >
-              Cảnh báo trễ (9)
-            </button>
-            <button
-              className={`filter-chip ${activeTab === 'DISPUTED' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('DISPUTED'); setPage(1); }}
-            >
-              Tranh chấp/Hủy (5)
-            </button>
-          </div>
-        </div>
+              {/* Quick Filter Tabs */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginRight: 4 }}>Lọc nhanh:</span>
+                <button
+                  className={`filter-chip ${activeTab === 'ALL' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('ALL'); setPage(1); }}
+                >
+                  Tất cả ({orderTotal})
+                </button>
+                <button
+                  className={`filter-chip ${activeTab === 'PENDING' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('PENDING'); setPage(1); }}
+                >
+                  Chờ nhận ({orderPending})
+                </button>
+                <button
+                  className={`filter-chip ${activeTab === 'PREPARING' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('PREPARING'); setPage(1); }}
+                >
+                  Đang nấu ({orderPreparing})
+                </button>
+                <button
+                  className={`filter-chip ${activeTab === 'DELIVERING' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('DELIVERING'); setPage(1); }}
+                >
+                  Đang giao ({orderDelivering})
+                </button>
+                <button
+                  className={`filter-chip ${activeTab === 'DELIVERED' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('DELIVERED'); setPage(1); }}
+                >
+                  Đã giao ({orderDelivered})
+                </button>
+                <button
+                  className={`filter-chip ${activeTab === 'CANCELLED' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('CANCELLED'); setPage(1); }}
+                >
+                  Tranh chấp/Hủy ({orderCancelled})
+                </button>
+              </div>
+            </div>
 
-        {/* Secondary Filter Row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 24px 14px', flexWrap: 'wrap' }}>
-          <select className="select-styled" style={{ height: 34, fontSize: '0.78rem' }}>
-            <option>Tất cả quận/huyện (TP.HCM)</option>
-            <option>Quận 1</option>
-            <option>Quận 3</option>
-            <option>Quận 10</option>
-            <option>Bình Thạnh</option>
-          </select>
+            {/* Secondary Filter Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 24px 14px', flexWrap: 'wrap' }}>
+              <select className="select-styled" style={{ height: 34, fontSize: '0.78rem' }}>
+                <option>Tất cả quận/huyện (TP.HCM)</option>
+                <option>Quận 1</option>
+                <option>Quận 3</option>
+                <option>Quận 10</option>
+                <option>Bình Thạnh</option>
+              </select>
 
-          <select className="select-styled" style={{ height: 34, fontSize: '0.78rem' }}>
-            <option>Cổng thanh toán: Tất cả</option>
-            <option>Ví MoMo (48%)</option>
-            <option>VNPay QR (28%)</option>
-            <option>Tiền mặt COD (20%)</option>
-            <option>Thẻ Visa/Master (4%)</option>
-          </select>
+              <select className="select-styled" style={{ height: 34, fontSize: '0.78rem' }}>
+                <option>Cổng thanh toán: Tất cả</option>
+                <option>Ví MoMo</option>
+                <option>VNPay QR</option>
+                <option>Tiền mặt COD</option>
+                <option>ZaloPay</option>
+              </select>
 
-          <select className="select-styled" style={{ height: 34, fontSize: '0.78rem' }}>
-            <option>Mức độ SLA: Tất cả mức</option>
-            <option>Đúng hẹn (&lt; 30p)</option>
-            <option>Chậm nhẹ (30 - 45p)</option>
-            <option>Báo động đỏ (&gt; 45p)</option>
-          </select>
+              <select className="select-styled" style={{ height: 34, fontSize: '0.78rem' }}>
+                <option>Mức độ SLA: Tất cả mức</option>
+                <option>Đúng hẹn (&lt; 30p)</option>
+                <option>Chậm nhẹ (30 - 45p)</option>
+                <option>Báo động đỏ (&gt; 45p)</option>
+              </select>
 
-          <div style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#64748b' }}>
-            Hiển thị <strong style={{ color: '#0f172a' }}>{orders.length}</strong> / {totalCount || 142} đơn hàng
-          </div>
-        </div>
+              <div style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#64748b' }}>
+                Hiển thị <strong style={{ color: '#0f172a' }}>{orders.length}</strong> / {totalCount} đơn hàng
+              </div>
+            </div>
 
         {/* Orders Table */}
         <div className="table-responsive">

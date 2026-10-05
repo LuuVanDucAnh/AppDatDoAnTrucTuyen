@@ -72,6 +72,7 @@ export function Sidebar({ activeTab, onSelectTab, currentUser, onLogout }: Sideb
           return (
             <button
               key={item.id}
+              id={`nav-tab-${item.id}`}
               className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
               onClick={() => onSelectTab(item.id)}
             >

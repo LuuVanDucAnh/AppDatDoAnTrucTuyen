@@ -264,7 +264,7 @@ export class AdminService {
       ]
     }
     if (role) where.role = role
-    if (status !== undefined) where.status = Number(status)
+    if (status !== undefined && status !== '') where.status = Number(status)
 
     const p = Math.max(1, parseInt(page) || 1)
     const l = Math.max(1, parseInt(limit) || 20)
@@ -668,20 +668,16 @@ export class AdminService {
       throw err
     }
 
-    // Kiểm tra có đơn đang active không
-    const activeOrders = await Orders.count({
-      where: {
-        restaurant_id: restaurantId,
-        status: { [Op.in]: ['PENDING', 'CONFIRMED', 'PREPARING', 'DELIVERING'] },
-      },
-    })
-    if (activeOrders > 0) {
-      const err = new Error(
-        `Không thể xóa nhà hàng đang có ${activeOrders} đơn hàng chưa hoàn thành. Vui lòng xử lý hết đơn trước.`,
-      )
-      err.status = 400
-      throw err
-    }
+    // Tự động hủy/đóng các đơn hàng chưa hoàn thành của quán để giải phóng
+    await Orders.update(
+      { status: 'CANCELLED' },
+      {
+        where: {
+          restaurant_id: restaurantId,
+          status: { [Op.in]: ['PENDING', 'CONFIRMED', 'PREPARING', 'DELIVERING'] },
+        },
+      }
+    )
 
     restaurant.deleted_at = new Date()
     restaurant.status = 'CLOSED'
@@ -732,9 +728,9 @@ export class AdminService {
   // ─────────────────────────────────────────────────────────────────
 
   /**
-   * Admin xem tất cả đơn hàng toàn sàn (lọc theo status, nhà hàng, ngày)
+   * Admin xem tất cả đơn hàng toàn sàn (lọc theo status, nhà hàng, ngày, tìm kiếm)
    */
-  async getAllOrders({ status, restaurant_id, from, to, page = 1, limit = 20 }) {
+  async getAllOrders({ search, status, restaurant_id, from, to, page = 1, limit = 20 }) {
     const where = {}
     if (status) where.status = status
     if (restaurant_id) where.restaurant_id = restaurant_id
@@ -744,6 +740,34 @@ export class AdminService {
       if (to) where.created_at[Op.lte] = new Date(to)
     }
 
+    // Tìm kiếm theo mã đơn (#DH-xxx), tên khách, SĐT khách, tên nhà hàng
+    const userInclude = {
+      model: Users,
+      as: 'user',
+      attributes: ['id', 'full_name', 'phone_number', 'email'],
+    }
+    const restaurantInclude = {
+      model: Restaurants,
+      as: 'restaurant',
+      attributes: ['id', 'name', 'address', 'phone_number'],
+    }
+
+    if (search) {
+      const q = `%${search.replace(/^#DH-/i, '')}%`
+      // Lọc thông qua OR: mã ID đơn, user.full_name, user.phone_number, restaurant.name
+      where[Op.and] = where[Op.and] || []
+      where[Op.and].push({
+        [Op.or]: [
+          literal(`CAST(\`Orders\`.\`id\` AS CHAR) LIKE '${q.replace(/%/g, '')}'`),
+          { '$user.full_name$': { [Op.like]: q } },
+          { '$user.phone_number$': { [Op.like]: q } },
+          { '$restaurant.name$': { [Op.like]: q } },
+        ]
+      })
+      userInclude.required = false
+      restaurantInclude.required = false
+    }
+
     const p = Math.max(1, parseInt(page) || 1)
     const l = Math.max(1, parseInt(limit) || 20)
 
@@ -751,16 +775,8 @@ export class AdminService {
       where,
       include: [
         { model: OrderItems, as: 'items' },
-        {
-          model: Users,
-          as: 'user',
-          attributes: ['id', 'full_name', 'phone_number', 'email'],
-        },
-        {
-          model: Restaurants,
-          as: 'restaurant',
-          attributes: ['id', 'name', 'address', 'phone_number'],
-        },
+        userInclude,
+        restaurantInclude,
         { model: Addresses, as: 'address' },
         { model: Payments, as: 'payment' },
       ],
@@ -909,30 +925,44 @@ export class AdminService {
   // ─────────────────────────────────────────────────────────────────
 
   /**
-   * Admin xem tất cả đánh giá (lọc theo nhà hàng, số sao)
+   * Admin xem tất cả đánh giá (lọc theo nhà hàng, số sao, tìm kiếm)
    */
-  async getAllReviews({ restaurant_id, rating, page = 1, limit = 20 }) {
+  async getAllReviews({ search, restaurant_id, rating, page = 1, limit = 20 }) {
     const where = {}
     if (restaurant_id) where.restaurant_id = restaurant_id
     if (rating) where.rating = Number(rating)
+
+    const userInclude = {
+      model: Users,
+      as: 'user',
+      attributes: ['id', 'full_name', 'phone_number', 'email'],
+    }
+    const restaurantInclude = {
+      model: Restaurants,
+      as: 'restaurant',
+      attributes: ['id', 'name'],
+    }
+
+    if (search) {
+      const q = `%${search}%`
+      where[Op.and] = where[Op.and] || []
+      where[Op.and].push({
+        [Op.or]: [
+          { comment: { [Op.like]: q } },
+          { '$user.full_name$': { [Op.like]: q } },
+          { '$restaurant.name$': { [Op.like]: q } },
+        ]
+      })
+      userInclude.required = false
+      restaurantInclude.required = false
+    }
 
     const p = Math.max(1, parseInt(page) || 1)
     const l = Math.max(1, parseInt(limit) || 20)
 
     const { count, rows } = await Reviews.findAndCountAll({
       where,
-      include: [
-        {
-          model: Users,
-          as: 'user',
-          attributes: ['id', 'full_name', 'phone_number', 'email'],
-        },
-        {
-          model: Restaurants,
-          as: 'restaurant',
-          attributes: ['id', 'name'],
-        },
-      ],
+      include: [userInclude, restaurantInclude],
       order: [['id', 'DESC']],
       limit: l,
       offset: (p - 1) * l,

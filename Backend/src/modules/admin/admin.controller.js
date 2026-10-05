@@ -177,8 +177,8 @@ export const deleteRestaurant = async (req, res, next) => {
 
 export const getAllOrders = async (req, res, next) => {
   try {
-    const { status, restaurant_id, from, to, page, limit } = req.query
-    const result = await service.getAllOrders({ status, restaurant_id, from, to, page, limit })
+    const { search, status, restaurant_id, from, to, page, limit } = req.query
+    const result = await service.getAllOrders({ search, status, restaurant_id, from, to, page, limit })
     const meta = getPaginationMeta(result.total, result.page, result.limit)
     sendSuccess(res, 'Lấy danh sách đơn hàng thành công', result.data, meta)
   } catch (err) { next(err) }
@@ -235,8 +235,8 @@ export const getAllPayments = async (req, res, next) => {
 
 export const getAllReviews = async (req, res, next) => {
   try {
-    const { restaurant_id, rating, page, limit } = req.query
-    const result = await service.getAllReviews({ restaurant_id, rating, page, limit })
+    const { search, restaurant_id, rating, page, limit } = req.query
+    const result = await service.getAllReviews({ search, restaurant_id, rating, page, limit })
     const meta = getPaginationMeta(result.total, result.page, result.limit)
     sendSuccess(res, 'Lấy danh sách đánh giá thành công', result.data, meta)
   } catch (err) { next(err) }

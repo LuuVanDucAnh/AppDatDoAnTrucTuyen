@@ -73,6 +73,10 @@ export function UsersView() {
   });
   const [updatingUser, setUpdatingUser] = useState(false);
 
+  // Delete User Confirmation Modal State
+  const [deleteTargetUser, setDeleteTargetUser] = useState<AdminUser | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
+
   // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -231,19 +235,29 @@ export function UsersView() {
     }
   };
 
-  const handleDeleteUser = async (user: AdminUser) => {
+  const handleOpenDeleteUser = (user: AdminUser) => {
     if (user.role === 'ADMIN') {
-      showToast('error', 'Không thể xóa tài khoản Quản trị viên.');
+      showToast('error', 'Không thể xóa tài khoản Quản trị viên hệ thống.');
       return;
     }
-    if (!confirm(`Bạn có chắc muốn xóa vĩnh viễn tài khoản "${user.full_name}"?`)) return;
+    setDeleteTargetUser(user);
+  };
 
+  const confirmDeleteUser = async () => {
+    if (!deleteTargetUser) return;
     try {
-      await usersApi.deleteUser(user.id);
-      showToast('success', 'Xóa tài khoản thành công.');
+      setDeletingUser(true);
+      await usersApi.deleteUser(deleteTargetUser.id);
+      // Cập nhật giao diện tức thì (Optimistic update)
+      setUsers((prev) => prev.filter((u) => u.id !== deleteTargetUser.id));
+      setTotalCount((prev) => Math.max(0, prev - 1));
+      showToast('success', `Đã xóa tài khoản "${deleteTargetUser.full_name}" thành công.`);
+      setDeleteTargetUser(null);
       fetchUsers();
     } catch (err: any) {
-      showToast('error', err?.message || 'Không thể xóa tài khoản.');
+      showToast('error', err?.message || 'Không thể xóa tài khoản người dùng.');
+    } finally {
+      setDeletingUser(false);
     }
   };
 
@@ -818,7 +832,7 @@ export function UsersView() {
                             <button
                               className="btn-icon"
                               title="Xóa tài khoản"
-                              onClick={() => handleDeleteUser(u)}
+                              onClick={() => handleOpenDeleteUser(u)}
                               style={{ color: '#dc2626', background: '#fef2f2' }}
                             >
                               <Trash2 size={15} />
@@ -1189,6 +1203,83 @@ export function UsersView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: XÁC NHẬN XÓA TÀI KHOẢN NGƯỜI DÙNG
+         ───────────────────────────────────────────────────────────── */}
+      {deleteTargetUser && (
+        <div className="modal-overlay" onClick={() => !deletingUser && setDeleteTargetUser(null)}>
+          <div className="modal-card" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Trash2 size={18} color="#dc2626" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#dc2626', margin: 0 }}>Xác Nhận Xóa Tài Khoản</h3>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Hành động này sẽ xóa người dùng khỏi hệ thống</div>
+                </div>
+              </div>
+              <button className="btn-icon" onClick={() => !deletingUser && setDeleteTargetUser(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px 24px' }}>
+              <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.6, margin: 0 }}>
+                Bạn có chắc chắn muốn xóa tài khoản của người dùng:
+              </p>
+              <div style={{ margin: '12px 0', padding: '12px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>{deleteTargetUser.full_name}</strong>
+                <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                  Email: <span style={{ color: '#0f172a' }}>{deleteTargetUser.email || 'Chưa cập nhật'}</span> • SĐT: <span style={{ color: '#0f172a' }}>{deleteTargetUser.phone_number}</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#ea580c', fontWeight: 600, marginTop: 2 }}>
+                  Vai trò: {deleteTargetUser.role} (Mã: #USR-{String(deleteTargetUser.id).padStart(4, '0')})
+                </div>
+              </div>
+              <div style={{ padding: '10px 14px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca', fontSize: '0.8rem', color: '#991b1b', display: 'flex', gap: 8, alignItems: 'center' }}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>Tài khoản sẽ bị vô hiệu hóa quyền đăng nhập ngay lập tức.</span>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setDeleteTargetUser(null)}
+                disabled={deletingUser}
+                style={{ height: 38, padding: '0 16px', fontSize: '0.85rem' }}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  height: 38,
+                  padding: '0 18px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  borderRadius: 8,
+                  cursor: deletingUser ? 'not-allowed' : 'pointer',
+                  opacity: deletingUser ? 0.7 : 1,
+                }}
+                onClick={confirmDeleteUser}
+                disabled={deletingUser}
+              >
+                <Trash2 size={15} />
+                <span>{deletingUser ? 'Đang xóa...' : 'Đồng Ý Xóa'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

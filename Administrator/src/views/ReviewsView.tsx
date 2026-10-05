@@ -9,6 +9,8 @@ import {
   Search,
   FileSpreadsheet,
   Check,
+  X,
+  AlertCircle,
 } from 'lucide-react';
 import { reviewsApi, dashboardApi } from '../services/api';
 import type { AdminReview, PlatformDashboard } from '../services/types';
@@ -23,6 +25,10 @@ export function ReviewsView() {
   const [totalCount, setTotalCount] = useState(0);
   const [dashboard, setDashboard] = useState<PlatformDashboard | null>(null);
 
+  // Delete Review Confirmation Modal State
+  const [deleteTargetReview, setDeleteTargetReview] = useState<AdminReview | null>(null);
+  const [deletingReview, setDeletingReview] = useState(false);
+
   // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -35,6 +41,7 @@ export function ReviewsView() {
     try {
       setLoading(true);
       const res = await reviewsApi.getReviews({
+        search: search.trim() || undefined,
         page,
         limit: 20,
       });
@@ -51,31 +58,38 @@ export function ReviewsView() {
     }
   };
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    fetchReviews();
+  };
+
   useEffect(() => {
     fetchReviews();
-  }, [page]);
+  }, [page, activeTab]);
 
-  const handleDeleteReview = async (id: number) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn đánh giá #${id} khỏi hệ thống?`)) return;
+  const confirmDeleteReview = async () => {
+    if (!deleteTargetReview) return;
     try {
-      await reviewsApi.deleteReview(id);
-      showToast('success', `Đã xóa đánh giá #${id} thành công.`);
+      setDeletingReview(true);
+      await reviewsApi.deleteReview(deleteTargetReview.id);
+      // Cập nhật giao diện tức thì (Optimistic update)
+      setReviews((prev) => prev.filter((r) => r.id !== deleteTargetReview.id));
+      setTotalCount((prev) => Math.max(0, prev - 1));
+      showToast('success', `Đã xóa đánh giá #${deleteTargetReview.id} thành công.`);
+      setDeleteTargetReview(null);
       fetchReviews();
     } catch (err: any) {
       showToast('error', err?.message || 'Không thể xóa đánh giá.');
+    } finally {
+      setDeletingReview(false);
     }
   };
 
+  // Lọc thêm phía frontend theo sao (POSITIVE/NEGATIVE tabs)
   const filteredReviews = reviews.filter((r) => {
     if (activeTab === 'POSITIVE' && r.rating < 4) return false;
     if (activeTab === 'NEGATIVE' && r.rating >= 4) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const userName = r.user?.full_name?.toLowerCase() || '';
-      const resName = r.restaurant?.name?.toLowerCase() || '';
-      const comment = r.comment?.toLowerCase() || '';
-      return userName.includes(q) || resName.includes(q) || comment.includes(q);
-    }
     return true;
   });
 
@@ -304,7 +318,7 @@ export function ReviewsView() {
          ───────────────────────────────────────────────────────────── */}
       <div className="glass-panel">
         <div className="filter-bar">
-          <div className="search-input-group">
+          <form onSubmit={handleSearchSubmit} className="search-input-group">
             <Search size={16} className="search-icon" />
             <input
               type="text"
@@ -313,7 +327,29 @@ export function ReviewsView() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </div>
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setPage(1);
+                  setTimeout(fetchReviews, 0);
+                }}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={15} />
+              </button>
+            )}
+          </form>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginRight: 4 }}>Lọc nhanh:</span>
@@ -415,7 +451,7 @@ export function ReviewsView() {
                         className="btn-action-sm"
                         style={{ color: '#dc2626' }}
                         title="Xóa đánh giá vi phạm khỏi database"
-                        onClick={() => handleDeleteReview(rev.id)}
+                        onClick={() => setDeleteTargetReview(rev)}
                       >
                         <Trash2 size={13} />
                         <span>Xóa đánh giá</span>
@@ -428,6 +464,92 @@ export function ReviewsView() {
           </table>
         </div>
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: XÁC NHẬN XÓA ĐÁNH GIÁ
+         ───────────────────────────────────────────────────────────── */}
+      {deleteTargetReview && (
+        <div className="modal-overlay" onClick={() => !deletingReview && setDeleteTargetReview(null)}>
+          <div className="modal-card" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Trash2 size={18} color="#dc2626" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#dc2626', margin: 0 }}>Xác Nhận Xóa Đánh Giá</h3>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Hành động này sẽ xóa vĩnh viễn đánh giá khỏi hệ thống</div>
+                </div>
+              </div>
+              <button className="btn-icon" onClick={() => !deletingReview && setDeleteTargetReview(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px 24px' }}>
+              <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.6, margin: 0 }}>
+                Bạn có chắc chắn muốn xóa đánh giá của khách hàng sau:
+              </p>
+              <div style={{ margin: '12px 0', padding: '12px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>
+                    {deleteTargetReview.user?.full_name || `Khách #${deleteTargetReview.user_id}`}
+                  </strong>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#d97706' }}>
+                    ⭐ {deleteTargetReview.rating}.0 / 5.0
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                  Nhà hàng: <strong style={{ color: '#0f172a' }}>{deleteTargetReview.restaurant?.name || `Quán #${deleteTargetReview.restaurant_id}`}</strong>
+                </div>
+                {deleteTargetReview.comment && (
+                  <div style={{ fontSize: '0.8rem', color: '#334155', fontStyle: 'italic', background: '#ffffff', padding: '8px 10px', borderRadius: 6, border: '1px solid #e2e8f0', marginTop: 4 }}>
+                    "{deleteTargetReview.comment}"
+                  </div>
+                )}
+              </div>
+              <div style={{ padding: '10px 14px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca', fontSize: '0.8rem', color: '#991b1b', display: 'flex', gap: 8, alignItems: 'center' }}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>Đánh giá sẽ bị xóa và điểm uy tín của quán sẽ được hệ thống tính toán lại.</span>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setDeleteTargetReview(null)}
+                disabled={deletingReview}
+                style={{ height: 38, padding: '0 16px', fontSize: '0.85rem' }}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  height: 38,
+                  padding: '0 18px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  borderRadius: 8,
+                  cursor: deletingReview ? 'not-allowed' : 'pointer',
+                  opacity: deletingReview ? 0.7 : 1,
+                }}
+                onClick={confirmDeleteReview}
+                disabled={deletingReview}
+              >
+                <Trash2 size={15} />
+                <span>{deletingReview ? 'Đang xóa...' : 'Đồng Ý Xóa'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   History,
   FileSpreadsheet,
   RotateCw,
+  AlertCircle,
 } from 'lucide-react';
 import { restaurantsApi, dashboardApi } from '../services/api';
 import type { AdminRestaurant, RestaurantStatus, PlatformDashboard } from '../services/types';
@@ -63,6 +64,10 @@ export function RestaurantsView() {
     owner_id: '',
   });
   const [updatingRes, setUpdatingRes] = useState(false);
+
+  // Delete Restaurant Confirmation Modal State
+  const [deleteTargetRes, setDeleteTargetRes] = useState<AdminRestaurant | null>(null);
+  const [deletingRes, setDeletingRes] = useState(false);
 
   // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -204,16 +209,21 @@ export function RestaurantsView() {
     }
   };
 
-  const handleDeleteRestaurant = async (res: AdminRestaurant) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa nhà hàng "${res.name}"? Chỉ xóa được khi quán không còn đơn đang chạy.`)) {
-      return;
-    }
+  const confirmDeleteRestaurant = async () => {
+    if (!deleteTargetRes) return;
     try {
-      await restaurantsApi.deleteRestaurant(res.id);
-      showToast('success', `Đã xóa nhà hàng "${res.name}" thành công.`);
+      setDeletingRes(true);
+      await restaurantsApi.deleteRestaurant(deleteTargetRes.id);
+      // Cập nhật giao diện tức thì (Optimistic update)
+      setRestaurants((prev) => prev.filter((r) => r.id !== deleteTargetRes.id));
+      setTotalCount((prev) => Math.max(0, prev - 1));
+      showToast('success', `Đã xóa nhà hàng "${deleteTargetRes.name}" thành công.`);
+      setDeleteTargetRes(null);
       fetchRestaurants();
     } catch (err: any) {
       showToast('error', err?.message || 'Không thể xóa nhà hàng.');
+    } finally {
+      setDeletingRes(false);
     }
   };
 
@@ -571,31 +581,25 @@ export function RestaurantsView() {
               className={`filter-chip ${statusTab === 'ALL' ? 'active' : ''}`}
               onClick={() => { setStatusTab('ALL'); setPage(1); }}
             >
-              Tất cả (150)
+              Tất cả ({dashboard?.restaurants?.total ?? totalCount})
             </button>
             <button
               className={`filter-chip ${statusTab === 'OPEN' ? 'active' : ''}`}
               onClick={() => { setStatusTab('OPEN'); setPage(1); }}
             >
-              Mở cửa (120)
+              Mở cửa ({dashboard?.restaurants?.open ?? 0})
             </button>
             <button
               className={`filter-chip ${statusTab === 'CLOSED' ? 'active' : ''}`}
               onClick={() => { setStatusTab('CLOSED'); setPage(1); }}
             >
-              Đóng cửa (16)
-            </button>
-            <button
-              className={`filter-chip ${statusTab === 'ONBOARD' ? 'active' : ''}`}
-              onClick={() => { setStatusTab('ONBOARD'); setPage(1); }}
-            >
-              Chờ duyệt (6)
+              Đóng cửa ({dashboard?.restaurants?.closed ?? 0})
             </button>
             <button
               className={`filter-chip ${statusTab === 'SUSPENDED' ? 'active' : ''}`}
               onClick={() => { setStatusTab('SUSPENDED'); setPage(1); }}
             >
-              Đình chỉ (8)
+              Đình chỉ ({restaurants.filter((r) => r.status === 'SUSPENDED').length})
             </button>
           </div>
         </div>
@@ -752,7 +756,7 @@ export function RestaurantsView() {
                         <button
                           className="btn-icon"
                           title="Xóa nhà hàng"
-                          onClick={() => handleDeleteRestaurant(res)}
+                          onClick={() => setDeleteTargetRes(res)}
                           style={{ color: '#dc2626' }}
                         >
                           <Trash2 size={15} />
@@ -1042,6 +1046,86 @@ export function RestaurantsView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: XÁC NHẬN XÓA NHÀ HÀNG
+         ───────────────────────────────────────────────────────────── */}
+      {deleteTargetRes && (
+        <div className="modal-overlay" onClick={() => !deletingRes && setDeleteTargetRes(null)}>
+          <div className="modal-card" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Trash2 size={18} color="#dc2626" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#dc2626', margin: 0 }}>Xác Nhận Xóa Nhà Hàng</h3>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Hành động này sẽ đóng cửa và ẩn nhà hàng khỏi sàn</div>
+                </div>
+              </div>
+              <button className="btn-icon" onClick={() => !deletingRes && setDeleteTargetRes(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px 24px' }}>
+              <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.6, margin: 0 }}>
+                Bạn có chắc chắn muốn xóa đối tác nhà hàng sau:
+              </p>
+              <div style={{ margin: '12px 0', padding: '12px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>{deleteTargetRes.name}</strong>
+                <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                  Địa chỉ: <span style={{ color: '#0f172a' }}>{deleteTargetRes.address}</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                  Chủ quán: <span style={{ color: '#0f172a' }}>{deleteTargetRes.owner?.full_name || `Mã #${deleteTargetRes.owner_id}`}</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#ea580c', fontWeight: 600, marginTop: 2 }}>
+                  Mã định danh: #RES-{deleteTargetRes.id} • Doanh số: {Number(deleteTargetRes.total_revenue || 0).toLocaleString('vi-VN')}đ
+                </div>
+              </div>
+              <div style={{ padding: '10px 14px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca', fontSize: '0.8rem', color: '#991b1b', display: 'flex', gap: 8, alignItems: 'center' }}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>Hệ thống sẽ tự động hủy các đơn hàng chưa hoàn tất và ngừng hoạt động nhà hàng.</span>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setDeleteTargetRes(null)}
+                disabled={deletingRes}
+                style={{ height: 38, padding: '0 16px', fontSize: '0.85rem' }}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  height: 38,
+                  padding: '0 18px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  borderRadius: 8,
+                  cursor: deletingRes ? 'not-allowed' : 'pointer',
+                  opacity: deletingRes ? 0.7 : 1,
+                }}
+                onClick={confirmDeleteRestaurant}
+                disabled={deletingRes}
+              >
+                <Trash2 size={15} />
+                <span>{deletingRes ? 'Đang xóa...' : 'Đồng Ý Xóa'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
