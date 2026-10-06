@@ -66,11 +66,11 @@ async function run() {
 
   console.log('3. Cập nhật ảnh đẹp cho các món hiện có (id 28-32)...')
   const foodUpdates = [
-    { id: 28, name: 'Phở Bò Đặc Biệt', image: 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800&auto=format&fit=crop&q=80' },
-    { id: 29, name: 'Bún Chả Hà Nội Nướng Than', image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80' },
-    { id: 30, name: 'Cơm Gà Chiên Mắm Giòn', image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80' },
-    { id: 31, name: 'Bánh Đa Cua Nồi Đất', image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80' },
-    { id: 32, name: 'Khoai Tây Chiên Bơ Tỏi', image: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800&auto=format&fit=crop&q=80' },
+    { id: 28, name: 'Phở Bò Đặc Biệt', image: '/uploads/foods/pho-bo-dac-biet-28.jpg' },
+    { id: 29, name: 'Bún Chả Hà Nội Nướng Than', image: '/uploads/foods/bun-cha-ha-noi-29.jpg' },
+    { id: 30, name: 'Cơm Gà Chiên Mắm Giòn', image: '/uploads/foods/com-ga-chien-mam-30.jpg' },
+    { id: 31, name: 'Bánh Đa Cua Nồi Đất', image: '/uploads/foods/banh-da-cua-noi-dat-31.jpg' },
+    { id: 32, name: 'Khoai Tây Chiên Bơ Tỏi', image: '/uploads/foods/khoai-tay-chien-bo-toi-32.jpg' },
   ]
   for (const f of foodUpdates) {
     await db.query('UPDATE foods SET name = ?, image = ? WHERE id = ?', [f.name, f.image, f.id])

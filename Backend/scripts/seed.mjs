@@ -56,22 +56,22 @@ const ADDRESSES = [
 ]
 
 const IMG = {
-  comTam: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80',
-  comSuon: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
-  comCotLet: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&auto=format&fit=crop&q=80',
-  comOpLa: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=800&auto=format&fit=crop&q=80',
-  chaTrung: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800&auto=format&fit=crop&q=80',
-  biTron: 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=800&auto=format&fit=crop&q=80',
-  canh: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=800&auto=format&fit=crop&q=80',
-  traTac: 'https://images.unsplash.com/photo-1558857563-b37cf5a5b515?w=800&auto=format&fit=crop&q=80',
-  pho: 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800&auto=format&fit=crop&q=80',
+  comTam: '/uploads/foods/com-tam-suon-bi-cha.jpg',
+  comSuon: '/uploads/foods/com-suon-cay-mat-ong.jpg',
+  comCotLet: '/uploads/foods/com-tam-suon-cot-let.jpg',
+  comOpLa: '/uploads/foods/com-tam-suon-op-la.jpg',
+  chaTrung: '/uploads/foods/cha-trung-hap.jpg',
+  biTron: '/uploads/foods/bi-tron-thinh.jpg',
+  canh: '/uploads/foods/canh-kho-qua-nhoi-thit.jpg',
+  traTac: '/uploads/foods/tra-tac-hat-e.jpg',
+  pho: '/uploads/foods/pho-bo-tai-nam-gau.jpg',
   phoCover: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=80',
-  traSua: 'https://images.unsplash.com/photo-1558857563-b37cf5a5b515?w=800&auto=format&fit=crop&q=80',
+  traSua: '/uploads/foods/tra-sua-tran-chau-duong-den-17.jpg',
   traSuaCover: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
-  gaRan: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800&auto=format&fit=crop&q=80',
+  gaRan: '/uploads/foods/ga-ran-gion-cay.jpg',
   gaRanCover: 'https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?w=800&auto=format&fit=crop&q=80',
-  pizza: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&auto=format&fit=crop&q=80',
-  bunBo: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80',
+  pizza: '/uploads/foods/pizza-vien-pho-mai-hai-san.jpg',
+  bunBo: '/uploads/foods/bun-bo-hue-dac-biet.jpg',
 }
 
 const RESTAURANTS = [
@@ -209,8 +209,8 @@ const RESTAURANTS = [
         name: 'Burger & Cơm',
         description: 'Món chính khác',
         foods: [
-          { name: 'Burger Gà Cajun', description: 'Burger phi lê gà Cajun, sốt mayonnaise đặc biệt.', price: 59000, image: IMG.gaRan },
-          { name: 'Cơm Gà Rán Sốt Cay', description: 'Cơm trắng ăn cùng gà rán sốt cay Hàn Quốc.', price: 65000, image: IMG.gaRan },
+          { name: 'Burger Gà Cajun', description: 'Burger phi lê gà Cajun, sốt mayonnaise đặc biệt.', price: 59000, image: '/uploads/foods/burger-ga-cajun.jpg' },
+          { name: 'Cơm Gà Rán Sốt Cay', description: 'Cơm trắng ăn cùng gà rán sốt cay Hàn Quốc.', price: 65000, image: '/uploads/foods/com-ga-ran-sot-cay.jpg' },
         ],
       },
     ],
@@ -231,7 +231,7 @@ const RESTAURANTS = [
         description: 'Đế giòn / đế dày',
         foods: [
           { name: 'Pizza Viền Phô Mai Hải Sản', description: 'Viền phô mai tan chảy, topping hải sản tươi.', price: 199000, image: IMG.pizza },
-          { name: 'Pizza Bò Bít Tết', description: 'Thịt bò bít tết áp chảo cùng sốt tiêu đen.', price: 219000, image: IMG.pizza },
+          { name: 'Pizza Bò Bít Tết', description: 'Thịt bò bít tết áp chảo cùng sốt tiêu đen.', price: 219000, image: '/uploads/foods/pizza-bo-bit-tet.jpg' },
         ],
       },
     ],

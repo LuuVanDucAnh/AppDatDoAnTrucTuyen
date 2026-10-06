@@ -18,7 +18,7 @@ import {
 
 import { useApp } from '@/context/AppContext';
 import { foodApi, restaurantApi, searchApi } from '@/services/api';
-import { resolveImageUrl } from '@/services/config';
+import { resolveImageUrl, DEFAULT_FOOD_IMAGE, DEFAULT_RESTAURANT_IMAGE } from '@/services/config';
 import type { ApiFood, ApiRestaurant } from '@/services/types';
 
 const { width } = Dimensions.get('window');
@@ -334,7 +334,7 @@ export default function ExploreScreen() {
                 <View key={f.id} style={styles.foodCard}>
                   <Image
                     source={{
-                      uri: resolveImageUrl(f.image) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300',
+                      uri: resolveImageUrl(f.image, DEFAULT_FOOD_IMAGE),
                     }}
                     style={styles.foodImage}
                   />

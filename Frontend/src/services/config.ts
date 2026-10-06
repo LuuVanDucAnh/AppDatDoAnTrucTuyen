@@ -45,7 +45,7 @@ export const ADMIN_WEB_URL = process.env.EXPO_PUBLIC_ADMIN_WEB_URL || 'http://lo
 export const DEFAULT_RESTAURANT_IMAGE =
   'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80';
 export const DEFAULT_FOOD_IMAGE =
-  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80';
+  'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800&auto=format&fit=crop&q=80';
 
 /**
  * Ảnh do Backend upload trả về đường dẫn tương đối (/uploads/...),
@@ -53,7 +53,7 @@ export const DEFAULT_FOOD_IMAGE =
  */
 export function resolveImageUrl(
   image?: string | null,
-  fallback: string = DEFAULT_RESTAURANT_IMAGE,
+  fallback: string = DEFAULT_FOOD_IMAGE,
 ): string {
   if (!image || typeof image !== 'string') return fallback;
   const trimmed = image.trim();
@@ -61,6 +61,9 @@ export function resolveImageUrl(
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   if (trimmed.startsWith('/uploads/')) return `${SERVER_URL}${trimmed}`;
   if (trimmed.startsWith('uploads/')) return `${SERVER_URL}/${trimmed}`;
-  // Nếu là chuỗi file name tương đối cũ không nằm trong thư mục uploads (ví dụ: 'pho-viet.jpg')
+  // Nếu là tên file cục bộ (ví dụ: 'pho-bo.jpg')
+  if (/\.(jpe?g|png|webp|gif)$/i.test(trimmed)) {
+    return `${SERVER_URL}/uploads/foods/${trimmed}`;
+  }
   return fallback;
 }
