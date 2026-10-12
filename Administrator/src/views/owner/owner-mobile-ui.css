@@ -1,0 +1,1257 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   GIAO DIỆN NHÀ HÀNG CHUẨN MOBILE (FOOD MERCHANT MOBILE-NATIVE STYLES)
+   Tái hiện 100% từng pixel, màu sắc, font chữ và thành phần từ Frontend React Native
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Mobile Frame Container: Căn giữa trên màn hình lớn như giao diện app, hoặc co giãn mượt mà */
+.owner-mobile-root {
+  min-height: 100vh;
+  background-color: #f1f5f9;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #111827;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.owner-mobile-container {
+  width: 100%;
+  max-width: 600px; /* Độ rộng hiển thị lý tưởng, chuẩn nét như điện thoại/máy tính bảng */
+  min-height: 100vh;
+  background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+}
+
+@media (min-width: 1024px) {
+  .owner-mobile-container.desktop-expanded {
+    max-width: 860px; /* Tuỳ chọn mở rộng nếu người dùng thích màn hình to hơn */
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1. OWNER HEADER (Y TRANG OWNER-CHROME.TSX)
+   ───────────────────────────────────────────────────────────────────────────── */
+.owner-m-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.owner-m-header-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  text-align: left;
+  padding: 0;
+}
+
+.owner-m-title-wrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.owner-m-header-label {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 1px;
+}
+
+.owner-m-store-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.owner-m-header-store-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+/* Status Pill: MỞ CỬA / ĐÓNG CỬA */
+.owner-m-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background-color: #dcfce7;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.owner-m-status-pill.closed {
+  background-color: #f1f5f9;
+}
+
+.owner-m-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #16a34a;
+}
+
+.owner-m-status-dot.closed {
+  background-color: #94a3b8;
+}
+
+.owner-m-status-text {
+  font-size: 11px;
+  font-weight: 800;
+  color: #15803d;
+}
+
+.owner-m-status-text.closed {
+  color: #64748b;
+}
+
+/* Bell Button */
+.owner-m-bell-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  background-color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: none;
+  cursor: pointer;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.owner-m-bell-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 5px;
+  background-color: #ef4444;
+  border: 1.5px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.owner-m-bell-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: #ffffff;
+}
+
+/* Avatar Button */
+.owner-m-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background-color: #9a3412;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   2. OWNER TAB BAR (Y TRANG OWNER-CHROME.TSX)
+   ───────────────────────────────────────────────────────────────────────────── */
+.owner-m-tab-bar {
+  display: flex;
+  background-color: #ffffff;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+  padding-bottom: 10px;
+  position: sticky;
+  bottom: 0;
+  z-index: 50;
+  width: 100%;
+}
+
+.owner-m-tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.owner-m-tab-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  color: #64748b;
+}
+
+.owner-m-tab-item.active .owner-m-tab-icon-wrap {
+  color: #a04000;
+}
+
+.owner-m-tab-badge {
+  position: absolute;
+  top: -4px;
+  right: -10px;
+  background-color: #a04000;
+  border-radius: 8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.owner-m-tab-label {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.owner-m-tab-item.active .owner-m-tab-label {
+  color: #a04000;
+  font-weight: 700;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   3. SCROLLABLE CONTENT BODY (PADDING 14, GAP 12)
+   ───────────────────────────────────────────────────────────────────────────── */
+.owner-m-content {
+  flex: 1;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   4. DASHBOARD COMPONENTS (DASHBOARD.TSX)
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Hero Banner đơn mới */
+.owner-m-hero {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ea580c 0%, #9a3412 100%);
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.25);
+  transition: transform 0.15s;
+}
+
+.owner-m-hero:hover {
+  transform: translateY(-1px);
+}
+
+.owner-m-hero-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  background-color: rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.owner-m-hero-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.owner-m-hero-sub {
+  font-size: 11.5px;
+  color: #ffe4d3;
+  margin-top: 2px;
+}
+
+.owner-m-hero-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+
+.owner-m-hero-btn-text {
+  font-size: 12px;
+  font-weight: 800;
+  color: #c2410c;
+}
+
+/* Section Title */
+.owner-m-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #111827;
+  margin-top: 2px;
+}
+
+/* Stat Grid (Hiệu suất vận hành) */
+.owner-m-stat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.owner-m-stat-card {
+  flex-grow: 1;
+  flex-basis: calc(50% - 6px);
+  background-color: #ffffff;
+  border-radius: 13px;
+  padding: 12px;
+  border: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-sizing: border-box;
+}
+
+.owner-m-stat-card.wide {
+  flex-basis: 100%;
+}
+
+.owner-m-stat-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.owner-m-stat-value {
+  font-size: 19px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.owner-m-stat-hint {
+  font-size: 10.5px;
+  color: #94a3b8;
+}
+
+.owner-m-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Generic White Card Container */
+.owner-m-card {
+  background-color: #ffffff;
+  border-radius: 14px;
+  padding: 14px;
+  border: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.owner-m-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.owner-m-card-title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.owner-m-card-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.owner-m-link-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ea580c;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.owner-m-total-pill {
+  background-color: #fff7ed;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+.owner-m-total-pill-text {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #c2410c;
+}
+
+/* Revenue Chart */
+.owner-m-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 165px;
+  padding-top: 6px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+}
+
+.owner-m-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.owner-m-bar-val {
+  font-size: 8.5px;
+  color: #94a3b8;
+  font-weight: 700;
+  height: 12px;
+}
+
+.owner-m-bar {
+  width: 62%;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  background-color: #fdba74;
+  transition: height 0.3s;
+}
+
+.owner-m-bar.top-day {
+  background-color: #ea580c;
+}
+
+.owner-m-bar-lbl {
+  font-size: 9.5px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* Top Món Bán Chạy */
+.owner-m-top-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.owner-m-rank-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.owner-m-rank-badge.first {
+  background-color: #fef3c7;
+}
+
+.owner-m-rank-text {
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.owner-m-rank-text.first {
+  color: #b45309;
+}
+
+.owner-m-top-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.owner-m-top-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.owner-m-progress-track {
+  height: 5px;
+  border-radius: 3px;
+  background-color: #f1f5f9;
+  margin-top: 6px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.owner-m-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background-color: #fb923c;
+}
+
+/* Quick Actions Rows */
+.owner-m-quick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid #f8fafc;
+  cursor: pointer;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  width: 100%;
+  text-align: left;
+}
+
+.owner-m-quick-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.owner-m-quick-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.owner-m-quick-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   5. ORDERS COMPONENTS (ORDERS.TSX)
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Alert Banner đơn mới */
+.owner-m-alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.owner-m-alert-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.owner-m-alert-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: #ea580c;
+  animation: pulse 1.5s infinite;
+}
+
+.owner-m-alert-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #9a3412;
+}
+
+.owner-m-alert-sub {
+  font-size: 11px;
+  color: #c2410c;
+  margin-top: 1px;
+}
+
+.owner-m-sound-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background-color: #ffedd5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+}
+
+/* Tabs Filter Pills */
+.owner-m-tabs-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.owner-m-tab-pill {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #64748b;
+  transition: all 0.15s;
+}
+
+.owner-m-tab-pill.active {
+  background-color: #c2410c;
+  border-color: #c2410c;
+  color: #ffffff;
+}
+
+/* Auto Accept Row */
+.owner-m-auto-accept-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.owner-m-auto-accept-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+/* Order Card Badges */
+.owner-m-card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.owner-m-pending-badge {
+  background-color: #fef3c7;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #b45309;
+}
+
+.owner-m-cooking-badge {
+  background-color: #ffedd5;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #c2410c;
+}
+
+.owner-m-delivering-badge {
+  background-color: #e0e7ff;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #4338ca;
+}
+
+.owner-m-delivered-badge {
+  background-color: #dcfce7;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #15803d;
+}
+
+.owner-m-cancelled-badge {
+  background-color: #fee2e2;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #b91c1c;
+}
+
+.owner-m-order-id {
+  font-size: 13px;
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.owner-m-order-time {
+  font-size: 11px;
+  color: #78716c;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Customer & Phone */
+.owner-m-customer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.owner-m-customer-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.owner-m-phone-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #ffedd5;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c2410c;
+  text-decoration: none;
+}
+
+.owner-m-addr-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.owner-m-addr-text {
+  font-size: 11.5px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+/* Order Item Row */
+.owner-m-item-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px solid #f8fafc;
+}
+
+.owner-m-food-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  background-color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.owner-m-item-qty {
+  font-size: 13px;
+  font-weight: 800;
+  color: #c2410c;
+}
+
+.owner-m-item-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.owner-m-item-price {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-left: auto;
+}
+
+.owner-m-item-subnote {
+  font-size: 10.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Note Box */
+.owner-m-note-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background-color: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #b45309;
+  font-style: italic;
+}
+
+/* Total Row */
+.owner-m-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+.owner-m-pay-badge {
+  background-color: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.owner-m-total-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #111827;
+}
+
+/* Action Buttons */
+.owner-m-action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.owner-m-reject-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 10px;
+  color: #dc2626;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.owner-m-accept-btn {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #c2410c;
+  border: 1px solid #c2410c;
+  border-radius: 10px;
+  padding: 10px;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(194, 65, 12, 0.25);
+}
+
+.owner-m-handover-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #c2410c;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(194, 65, 12, 0.25);
+}
+
+.owner-m-done-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #16a34a;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   6. MENU COMPONENTS (MENU.TSX)
+   ───────────────────────────────────────────────────────────────────────────── */
+.owner-m-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.owner-m-main-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.owner-m-main-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.owner-m-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #ea580c;
+  border-radius: 9px;
+  padding: 7px 12px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+}
+
+/* Stat 2 boxes */
+.owner-m-menu-stat-row {
+  display: flex;
+  gap: 10px;
+}
+
+.owner-m-menu-stat-box {
+  flex: 1;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.owner-m-menu-stat-box.green {
+  background-color: #dcfce7;
+}
+
+.owner-m-menu-stat-box.red {
+  background-color: #fee2e2;
+}
+
+.owner-m-menu-stat-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.owner-m-menu-stat-box.green .owner-m-menu-stat-top {
+  color: #15803d;
+}
+
+.owner-m-menu-stat-box.red .owner-m-menu-stat-top {
+  color: #b91c1c;
+}
+
+.owner-m-menu-stat-val {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.owner-m-menu-stat-box.green .owner-m-menu-stat-val {
+  color: #14532d;
+}
+
+.owner-m-menu-stat-box.red .owner-m-menu-stat-val {
+  color: #7f1d1d;
+}
+
+/* Search Bar */
+.owner-m-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.owner-m-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: #1f2937;
+  background: transparent;
+}
+
+/* Category Chips */
+.owner-m-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.owner-m-chip.active {
+  background-color: #ea580c;
+  border-color: #ea580c;
+  color: #ffffff;
+}
+
+/* Food Row Card */
+.owner-m-food-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 10px;
+  transition: all 0.15s;
+}
+
+.owner-m-food-card.off {
+  background-color: #f8fafc;
+  opacity: 0.75;
+}
+
+.owner-m-food-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  object-fit: cover;
+  background-color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.owner-m-food-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.owner-m-food-price {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ea580c;
+  margin-top: 1px;
+}
+
+.owner-m-food-cat {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.owner-m-off-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #fee2e2;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: #b91c1c;
+  margin-top: 3px;
+  font-weight: 600;
+}
+
+/* iOS Toggle Switch */
+.owner-m-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.owner-m-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.owner-m-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #fca5a5;
+  transition: 0.2s;
+  border-radius: 24px;
+}
+
+.owner-m-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #dc2626;
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+.owner-m-switch input:checked + .owner-m-slider {
+  background-color: #86efac;
+}
+
+.owner-m-switch input:checked + .owner-m-slider:before {
+  transform: translateX(20px);
+  background-color: #16a34a;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   7. SETTINGS COMPONENTS (SETTINGS.TSX)
+   ───────────────────────────────────────────────────────────────────────────── */
+.owner-m-info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.owner-m-info-lbl {
+  font-size: 12px;
+  color: #94a3b8;
+  width: 92px;
+  flex-shrink: 0;
+}
+
+.owner-m-info-val {
+  font-size: 12.5px;
+  color: #1f2937;
+  font-weight: 600;
+  flex: 1;
+}
+
+.owner-m-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #fff7ed;
+  border: 1px solid #ffedd5;
+  border-radius: 8px;
+  padding: 7px 12px;
+  color: #ea580c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.owner-m-create-branch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  padding: 7px 12px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.owner-m-status-card-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid #dcfce7;
+  background-color: #f0fdf4;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.owner-m-status-card-btn.closed {
+  border-color: #fee2e2;
+  background-color: #fef2f2;
+}
+
+.owner-m-logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 10px;
+  padding: 11px;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 8px;
+}
