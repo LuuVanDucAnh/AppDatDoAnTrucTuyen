@@ -667,15 +667,18 @@ export const ownerApi = {
   async getReviews(
     restaurantId: number,
     params?: { rating?: number; page?: number; limit?: number }
-  ): Promise<{ total: number; page: number; limit: number; data: OwnerReview[] }> {
+  ): Promise<OwnerReview[]> {
     const q = new URLSearchParams();
     if (params?.rating) q.append('rating', String(params.rating));
     if (params?.page) q.append('page', String(params.page));
-    if (params?.limit) q.append('limit', String(params.limit || 50));
-    const res = await request<{ total: number; page: number; limit: number; data: OwnerReview[] }>(
+    if (params?.limit) q.append('limit', String(params.limit || 100));
+    const res = await request<OwnerReview[] | { data: OwnerReview[] }>(
       `/owner/restaurants/${restaurantId}/reviews?${q.toString()}`
     );
-    return res.data;
+    const raw: any = res.data;
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw?.data)) return raw.data;
+    return [];
   },
 };
 

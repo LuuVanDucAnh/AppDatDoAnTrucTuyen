@@ -17,14 +17,26 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(helmet())
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+)
 app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(morgan('combined', { stream: { write: (msg) => logger.http(msg.trim()) } }))
 
 // ── Static Files (uploaded images) ───────────────────────────────────────────
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')))
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    next()
+  },
+  express.static(path.join(__dirname, '..', 'uploads'))
+)
 
 // ── Swagger Docs ──────────────────────────────────────────────────────────────
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

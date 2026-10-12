@@ -24,7 +24,8 @@ export function OwnerReviewsView({ restaurant }: OwnerReviewsViewProps) {
     try {
       setLoading(true);
       const res = await ownerApi.getReviews(restaurant.id, { limit: 100 });
-      setReviews(res.data || []);
+      const list = Array.isArray(res) ? res : (Array.isArray((res as any)?.data) ? (res as any).data : []);
+      setReviews(list);
     } catch (err: any) {
       console.error('Không tải được đánh giá:', err);
     } finally {

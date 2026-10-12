@@ -4,11 +4,7 @@ import {
   Lock,
   Mail,
   ArrowRight,
-  ShieldCheck,
   AlertCircle,
-  Store,
-  Sparkles,
-  Check,
 } from 'lucide-react';
 import { authApi } from '../services/api';
 import type { AdminUser } from '../services/types';
@@ -18,40 +14,10 @@ interface LoginViewProps {
 }
 
 export function LoginView({ onSuccess }: LoginViewProps) {
-  const [email, setEmail] = useState('owner1@datdoan.vn');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const demoAccounts = [
-    {
-      role: 'RESTAURANT_OWNER',
-      name: 'Chủ Quán Cơm Tấm (Ba Ghiền)',
-      email: 'owner1@datdoan.vn',
-      icon: '🍛',
-      desc: 'Quản lý 2 nhà hàng, thực đơn, đơn hàng trực tuyến',
-    },
-    {
-      role: 'RESTAURANT_OWNER',
-      name: 'Chủ Quán KOI Thé & Popeyes',
-      email: 'owner2@datdoan.vn',
-      icon: '🧋',
-      desc: 'Quản lý trà sữa, gà rán, theo dõi doanh thu',
-    },
-    {
-      role: 'ADMIN',
-      name: 'Quản Trị Viên Toàn Hệ Thống',
-      email: 'admin@datdoan.vn',
-      icon: '👑',
-      desc: 'Kiểm soát toàn sàn, đối soát tài chính, người dùng',
-    },
-  ];
-
-  const handleSelectDemo = (accEmail: string) => {
-    setEmail(accEmail);
-    setPassword('123456');
-    setError(null);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +54,7 @@ export function LoginView({ onSuccess }: LoginViewProps) {
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: '440px',
           padding: '40px 36px',
           display: 'flex',
           flexDirection: 'column',
@@ -127,48 +93,6 @@ export function LoginView({ onSuccess }: LoginViewProps) {
           </div>
         </div>
 
-        {/* Quick Demo Account Selector */}
-        <div>
-          <div style={{ fontSize: '0.76rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.05em', marginBottom: 8 }}>
-            TÀI KHOẢN MẪU ĐĂNG NHẬP NHANH (MẬT KHẨU: 123456)
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {demoAccounts.map((acc) => {
-              const isSelected = email.toLowerCase() === acc.email.toLowerCase();
-              return (
-                <div
-                  key={acc.email}
-                  onClick={() => handleSelectDemo(acc.email)}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 10,
-                    background: isSelected ? 'rgba(249, 115, 22, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                    border: isSelected ? '1px solid rgba(249, 115, 22, 0.6)' : '1px solid rgba(255, 255, 255, 0.06)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: '1.2rem' }}>{acc.icon}</span>
-                    <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isSelected ? '#fb923c' : '#f1f5f9' }}>
-                        {acc.name}
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                        {acc.email}
-                      </div>
-                    </div>
-                  </div>
-                  {isSelected && <Check size={16} color="#fb923c" />}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         {error && (
           <div
             style={{
@@ -204,7 +128,7 @@ export function LoginView({ onSuccess }: LoginViewProps) {
               />
               <input
                 type="email"
-                placeholder="chuan@datdoan.vn"
+                placeholder="Nhập email tài khoản..."
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 style={{
@@ -271,30 +195,6 @@ export function LoginView({ onSuccess }: LoginViewProps) {
             )}
           </button>
         </form>
-
-        <div
-          style={{
-            padding: '12px 14px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            borderRadius: 12,
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            fontSize: '0.78rem',
-            color: '#64748b',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShieldCheck size={16} color="#10b981" />
-            <span style={{ color: '#cbd5e1' }}>
-              Hỗ trợ cả <strong>Chủ Nhà Hàng (RESTAURANT_OWNER)</strong> và <strong>Quản Trị Viên (ADMIN)</strong>.
-            </span>
-          </div>
-          <div style={{ fontSize: '0.73rem', color: '#94a3b8' }}>
-            💡 Hệ thống tự động chuyển vào đúng phân hệ: Kênh Đối Tác Quán Ăn hoặc Cổng Super Admin.
-          </div>
-        </div>
       </div>
     </div>
   );

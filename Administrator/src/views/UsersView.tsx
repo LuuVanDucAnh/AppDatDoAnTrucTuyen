@@ -428,32 +428,7 @@ export function UsersView() {
         </div>
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          3. ROLE SWITCHING MATRIX BANNER
-         ───────────────────────────────────────────────────────────── */}
-      <div className="role-matrix-banner">
-        <div className="role-matrix-left">
-          <div className="role-matrix-icon-box">
-            <ShieldCheck size={22} />
-          </div>
-          <div>
-            <div className="role-matrix-title-row">
-              <h4>Cơ chế Kiểm soát Vai trò (Role Switching Matrix)</h4>
-              <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', background: '#fed7aa', color: '#7c2d12', padding: '2px 7px', borderRadius: 4, fontWeight: 700 }}>
-                API /users/{'{id}'}/role
-              </span>
-            </div>
-            <p className="role-matrix-desc">
-              Hệ thống cho phép chuyển đổi linh hoạt: Khách hàng (<strong>CUSTOMER</strong>) ➔ Đối tác Chủ quán (<strong>RESTAURANT_OWNER</strong>) khi hoàn tất đăng ký gian hàng; hoặc hạ cấp khi huỷ hợp tác. Mật khẩu mã hoá <strong>bcrypt</strong> và phiên JWT sẽ thu hồi tức thì ngay khi tài khoản bị khoá.
-            </p>
-          </div>
-        </div>
 
-        <button className="btn-standard-policy" onClick={() => setShowPolicyModal(true)}>
-          <BookOpen size={15} />
-          <span>Quy chuẩn phân quyền</span>
-        </button>
-      </div>
 
       {/* ─────────────────────────────────────────────────────────────
           4. MAIN TABLE PANEL & FILTERS

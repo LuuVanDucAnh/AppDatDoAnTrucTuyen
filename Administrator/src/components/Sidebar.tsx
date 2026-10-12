@@ -6,9 +6,7 @@ import {
   ShoppingBag,
   CreditCard,
   Star,
-  Settings,
   Flame,
-  Activity,
   LogOut,
 } from 'lucide-react';
 import type { AdminUser } from '../services/types';
@@ -19,8 +17,7 @@ export type NavTab =
   | 'restaurants'
   | 'orders'
   | 'payments'
-  | 'reviews'
-  | 'settings';
+  | 'reviews';
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -37,7 +34,6 @@ export function Sidebar({ activeTab, onSelectTab, currentUser, onLogout }: Sideb
     { id: 'orders', label: 'Quản lý Đơn hàng', icon: <ShoppingBag size={18} /> },
     { id: 'payments', label: 'Doanh thu & Đối soát', icon: <CreditCard size={18} /> },
     { id: 'reviews', label: 'Đánh giá & Kiểm duyệt', icon: <Star size={18} /> },
-    { id: 'settings', label: 'Cài đặt hệ thống', icon: <Settings size={18} /> },
   ];
 
   return (
@@ -51,15 +47,6 @@ export function Sidebar({ activeTab, onSelectTab, currentUser, onLogout }: Sideb
           <h1>Food</h1>
           <span>ADMIN PORTAL</span>
         </div>
-      </div>
-
-      {/* System Status Pill */}
-      <div className="system-status-pill">
-        <div className="indicator">
-          <span className="dot" />
-          <span>Hệ thống: Sẵn sàng</span>
-        </div>
-        <span style={{ color: '#10b981', fontWeight: 700 }}>99.98%</span>
       </div>
 
       {/* Section Header */}
@@ -83,33 +70,32 @@ export function Sidebar({ activeTab, onSelectTab, currentUser, onLogout }: Sideb
         })}
       </nav>
 
-      {/* Footer Info */}
-      <div className="sidebar-footer">
-        <div className="sidebar-footer-row">
-          <span>Môi trường</span>
-          <span className="env-badge">Production v2.4</span>
-        </div>
-        <div className="sidebar-footer-row">
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Activity size={13} color="#10b981" />
-            <span>Phản hồi API: 42ms</span>
-          </span>
-          <button
-            onClick={onLogout}
-            title="Đăng xuất"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#ef4444',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              padding: 2,
-            }}
-          >
-            <LogOut size={15} />
-          </button>
-        </div>
+      {/* Footer Logout Button */}
+      <div className="sidebar-footer" style={{ padding: '16px' }}>
+        <button
+          onClick={onLogout}
+          title="Đăng xuất khỏi hệ thống"
+          className="sidebar-logout-btn"
+          style={{
+            width: '100%',
+            background: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            color: '#ef4444',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '10px 14px',
+            borderRadius: 8,
+            fontWeight: 600,
+            fontSize: 13,
+            transition: 'all 0.2s',
+          }}
+        >
+          <LogOut size={16} />
+          <span>Đăng xuất</span>
+        </button>
       </div>
     </aside>
   );

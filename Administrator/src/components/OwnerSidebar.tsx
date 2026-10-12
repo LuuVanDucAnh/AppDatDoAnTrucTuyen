@@ -15,6 +15,7 @@ import {
   Check,
 } from 'lucide-react';
 import type { AdminRestaurant, AdminUser } from '../services/types';
+import { resolveImageUrl, DEFAULT_RESTAURANT_IMAGE } from '../services/utils';
 
 export type OwnerNavTab = 'overview' | 'orders' | 'menu' | 'reviews' | 'settings';
 
@@ -87,23 +88,60 @@ export function OwnerSidebar({
 
   const statusInfo = getStatusBadge(selectedRestaurant?.status);
 
+  // Ký tự viết tắt nhận diện quán
+  const initials = selectedRestaurant?.name
+    ? selectedRestaurant.name
+        .split(' ')
+        .map((w) => w[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'QA';
+
   return (
     <aside className="sidebar">
-      {/* Brand Header */}
+      {/* Brand Header: Logo & Tên Quán Ăn */}
       <div className="sidebar-brand-box">
         <div
           className="sidebar-logo"
           style={{
             background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
             boxShadow: '0 4px 14px rgba(249, 115, 22, 0.4)',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          <Store size={22} color="#ffffff" />
+          {selectedRestaurant?.image ? (
+            <img
+              src={resolveImageUrl(selectedRestaurant.image, DEFAULT_RESTAURANT_IMAGE)}
+              alt={selectedRestaurant.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <span style={{ color: '#ffffff', fontWeight: 900, fontSize: '0.95rem' }}>
+              {initials}
+            </span>
+          )}
         </div>
         <div className="brand-text">
-          <h1 style={{ color: '#fff', fontSize: '1.15rem' }}>Food Merchant</h1>
+          <h1
+            style={{
+              color: '#fff',
+              fontSize: '1.08rem',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: 160,
+            }}
+            title={selectedRestaurant?.name || 'Kênh Nhà Hàng'}
+          >
+            {selectedRestaurant?.name || 'Kênh Nhà Hàng'}
+          </h1>
           <span style={{ color: '#f97316', letterSpacing: '0.06em', fontWeight: 700 }}>
-            KÊNH ĐỐI TÁC NHÀ HÀNG
+            ĐỐI TÁC GIAN HÀNG
           </span>
         </div>
       </div>
@@ -143,20 +181,31 @@ export function OwnerSidebar({
                 justifyContent: 'center',
                 overflow: 'hidden',
                 flexShrink: 0,
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
               }}
             >
               {selectedRestaurant?.image ? (
                 <img
-                  src={selectedRestaurant.image}
+                  src={resolveImageUrl(selectedRestaurant.image, DEFAULT_RESTAURANT_IMAGE)}
                   alt={selectedRestaurant.name}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   onError={(e) => {
+                    const parent = (e.target as HTMLElement).parentElement;
                     (e.target as HTMLElement).style.display = 'none';
+                    if (parent) {
+                      const span = document.createElement('span');
+                      span.style.color = '#f97316';
+                      span.style.fontWeight = '800';
+                      span.style.fontSize = '0.78rem';
+                      span.innerText = initials;
+                      parent.appendChild(span);
+                    }
                   }}
                 />
               ) : (
-                <Store size={18} color="#f97316" />
+                <span style={{ color: '#f97316', fontWeight: 800, fontSize: '0.78rem' }}>
+                  {initials}
+                </span>
               )}
             </div>
 
@@ -246,6 +295,34 @@ export function OwnerSidebar({
                     marginBottom: 2,
                   }}
                 >
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 6,
+                      overflow: 'hidden',
+                      background: '#0f172a',
+                      marginRight: 10,
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                    }}
+                  >
+                    {res.image ? (
+                      <img
+                        src={resolveImageUrl(res.image, DEFAULT_RESTAURANT_IMAGE)}
+                        alt={res.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#f97316' }}>
+                        {(res.name || 'QA').slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+
                   <div style={{ minWidth: 0, flex: 1, paddingRight: 8 }}>
                     <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {res.name}

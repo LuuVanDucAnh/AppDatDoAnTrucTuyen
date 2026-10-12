@@ -10,7 +10,6 @@ import { RestaurantsView } from './views/RestaurantsView';
 import { UsersView } from './views/UsersView';
 import { PaymentsView } from './views/PaymentsView';
 import { ReviewsView } from './views/ReviewsView';
-import { SettingsView } from './views/SettingsView';
 
 // Owner Desktop Web Views (Dựa trên 100% tính năng & thiết kế mobile)
 import { OwnerDashboardView } from './views/owner/OwnerDashboardView';
@@ -60,6 +59,13 @@ export function App() {
     return isOwnerRole ? 'owner' : 'admin';
   });
 
+  // Chủ quán luôn luôn ở cổng 'owner' (ngăn chặn tình trạng render nhầm cổng Admin gây lỗi 401/403 Forbidden)
+  const effectivePortalMode: 'admin' | 'owner' = isOwnerRole
+    ? 'owner'
+    : currentUser?.role === 'ADMIN'
+    ? portalMode
+    : 'owner';
+
   // Cập nhật portalMode khi currentUser thay đổi
   useEffect(() => {
     if (currentUser) {
@@ -74,7 +80,7 @@ export function App() {
     try {
       const hash = window.location.hash.replace('#', '') as NavTab;
       if (
-        ['dashboard', 'users', 'restaurants', 'orders', 'payments', 'reviews', 'settings'].includes(
+        ['dashboard', 'users', 'restaurants', 'orders', 'payments', 'reviews'].includes(
           hash
         )
       ) {
@@ -140,10 +146,10 @@ export function App() {
   }, [currentUser]);
 
   useEffect(() => {
-    if (currentUser && (portalMode === 'owner' || isOwnerRole)) {
+    if (currentUser && (effectivePortalMode === 'owner' || isOwnerRole)) {
       fetchMyRestaurants();
     }
-  }, [currentUser, portalMode, isOwnerRole, fetchMyRestaurants]);
+  }, [currentUser, effectivePortalMode, isOwnerRole, fetchMyRestaurants]);
 
   // Cập nhật số đơn PENDING định kỳ
   const refreshPendingCount = useCallback(() => {
@@ -181,7 +187,7 @@ export function App() {
   // Hash listener
   useEffect(() => {
     const onHashChange = () => {
-      if (portalMode === 'admin') {
+      if (effectivePortalMode === 'admin') {
         setActiveAdminTab(getAdminTabFromLocation());
       } else {
         setActiveOwnerTab(getOwnerTabFromLocation());
@@ -193,7 +199,7 @@ export function App() {
       window.removeEventListener('hashchange', onHashChange);
       window.removeEventListener('popstate', onHashChange);
     };
-  }, [portalMode]);
+  }, [effectivePortalMode]);
 
   const handleSelectAdminTab = (tab: NavTab) => {
     setActiveAdminTab(tab);
@@ -221,7 +227,7 @@ export function App() {
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
-    if (portalMode === 'owner') {
+    if (effectivePortalMode === 'owner') {
       refreshPendingCount();
     }
   };
@@ -235,7 +241,7 @@ export function App() {
   // GIAO DIỆN 1: KÊNH ĐỐI TÁC NHÀ HÀNG (MERCHANT / OWNER WEB PORTAL)
   // Giao diện web hoàn chỉnh trên nền tảng tính năng và thiết kế mobile
   // ═══════════════════════════════════════════════════════════════════════════
-  if (portalMode === 'owner') {
+  if (effectivePortalMode === 'owner') {
     const tabTitles: Record<OwnerNavTab, string> = {
       overview: 'Tổng quan kinh doanh',
       orders: 'Quản lý đơn hàng trực tuyến',
@@ -359,7 +365,6 @@ export function App() {
           {activeAdminTab === 'orders' && <OrdersView />}
           {activeAdminTab === 'payments' && <PaymentsView />}
           {activeAdminTab === 'reviews' && <ReviewsView />}
-          {activeAdminTab === 'settings' && <SettingsView />}
         </main>
       </div>
     </div>

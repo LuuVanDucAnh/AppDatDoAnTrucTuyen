@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { restaurantsApi, dashboardApi } from '../services/api';
 import type { AdminRestaurant, RestaurantStatus, PlatformDashboard } from '../services/types';
+import { resolveImageUrl, DEFAULT_RESTAURANT_IMAGE } from '../services/utils';
 
 export function RestaurantsView() {
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
@@ -477,12 +478,22 @@ export function RestaurantsView() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontWeight: 800,
+                        fontWeight: 900,
                         color: '#ea580c',
-                        fontSize: '1.2rem',
+                        fontSize: '1rem',
+                        overflow: 'hidden',
+                        flexShrink: 0,
                       }}
                     >
-                      🍲
+                      {res.image ? (
+                        <img
+                          src={resolveImageUrl(res.image, DEFAULT_RESTAURANT_IMAGE)}
+                          alt={res.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <span>{(res.name || 'QA').slice(0, 2).toUpperCase()}</span>
+                      )}
                     </div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -676,10 +687,22 @@ export function RestaurantsView() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '1rem',
+                            fontSize: '0.82rem',
+                            fontWeight: 800,
+                            color: '#ea580c',
+                            overflow: 'hidden',
+                            flexShrink: 0,
                           }}
                         >
-                          🏪
+                          {res.image ? (
+                            <img
+                              src={resolveImageUrl(res.image, DEFAULT_RESTAURANT_IMAGE)}
+                              alt={res.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <span>{(res.name || 'QA').slice(0, 2).toUpperCase()}</span>
+                          )}
                         </div>
                         <div>
                           <strong style={{ fontSize: '0.88rem', color: '#0f172a' }}>{res.name}</strong>

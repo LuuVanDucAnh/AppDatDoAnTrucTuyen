@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { AdminRestaurant, AdminUser, RestaurantStatus } from '../services/types';
 import { ownerApi } from '../services/api';
+import { resolveImageUrl, DEFAULT_RESTAURANT_IMAGE } from '../services/utils';
 
 interface OwnerHeaderProps {
   currentUser: AdminUser | null;
@@ -46,20 +47,116 @@ export function OwnerHeader({
 
   const currentStatus = selectedRestaurant?.status || 'OPEN';
 
+  // Chữ cái viết tắt nhận diện quán ăn
+  const initials = selectedRestaurant?.name
+    ? selectedRestaurant.name
+        .split(' ')
+        .map((w) => w[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'QA';
+
   return (
     <header className="top-header">
-      {/* Left side: Breadcrumb & Restaurant Title */}
-      <div className="header-search-wrap">
-        <div className="breadcrumb-trail">
-          <Store size={15} style={{ marginRight: 2, color: '#f97316' }} />
-          <span>Kênh Quán Ăn</span>
-          <ChevronRight size={13} />
-          <span style={{ color: '#0f172a', fontWeight: 600 }}>
-            {selectedRestaurant?.name || 'Chưa chọn quán'}
-          </span>
-          <ChevronRight size={13} />
-          <strong style={{ color: '#ea580c' }}>{activeTabTitle}</strong>
-        </div>
+      {/* Left side: Restaurant Brand Identity & Active Section */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        {selectedRestaurant ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Logo Thương Hiệu Quán Ăn */}
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 10,
+                overflow: 'hidden',
+                background: 'linear-gradient(135deg, #FFEDD5 0%, #FED7AA 100%)',
+                border: '1.5px solid #FDBA74',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(249, 115, 22, 0.15)',
+                flexShrink: 0,
+              }}
+            >
+              {selectedRestaurant.image ? (
+                <img
+                  src={resolveImageUrl(selectedRestaurant.image, DEFAULT_RESTAURANT_IMAGE)}
+                  alt={selectedRestaurant.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    const parent = (e.target as HTMLElement).parentElement;
+                    (e.target as HTMLElement).style.display = 'none';
+                    if (parent) {
+                      const badge = document.createElement('span');
+                      badge.style.fontWeight = '900';
+                      badge.style.color = '#EA580C';
+                      badge.style.fontSize = '0.92rem';
+                      badge.innerText = initials;
+                      parent.appendChild(badge);
+                    }
+                  }}
+                />
+              ) : (
+                <span style={{ fontWeight: 900, color: '#EA580C', fontSize: '0.92rem' }}>
+                  {initials}
+                </span>
+              )}
+            </div>
+
+            {/* Tên quán & Phân mục */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: '1.02rem',
+                    fontWeight: 800,
+                    color: '#0F172A',
+                    lineHeight: 1.2,
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {selectedRestaurant.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    background: '#F1F5F9',
+                    color: '#64748B',
+                    padding: '1px 6px',
+                    borderRadius: 4,
+                  }}
+                >
+                  #RES-{selectedRestaurant.id}
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: '0.74rem',
+                  color: '#64748B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  marginTop: 2,
+                }}
+              >
+                <span>Kênh Quán Ăn</span>
+                <ChevronRight size={11} color="#94A3B8" />
+                <strong style={{ color: '#EA580C' }}>{activeTabTitle}</strong>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="breadcrumb-trail">
+            <Store size={15} style={{ marginRight: 2, color: '#f97316' }} />
+            <span>Kênh Quán Ăn</span>
+            <ChevronRight size={13} />
+            <strong style={{ color: '#ea580c' }}>{activeTabTitle}</strong>
+          </div>
+        )}
       </div>
 
       {/* Right side: Quick Status Pill Switcher & Profile */}

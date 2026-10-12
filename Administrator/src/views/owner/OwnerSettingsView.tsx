@@ -86,7 +86,10 @@ export function OwnerSettingsView({
     setLoadingReviews(true);
     ownerApi
       .getReviews(restaurant.id, { limit: 3 })
-      .then((res) => setReviews(res.data || []))
+      .then((res) => {
+        const list = Array.isArray(res) ? res : (Array.isArray((res as any)?.data) ? (res as any).data : []);
+        setReviews(list);
+      })
       .catch(() => setReviews([]))
       .finally(() => setLoadingReviews(false));
   }, [restaurant?.id]);
@@ -289,12 +292,12 @@ export function OwnerSettingsView({
               </div>
             </div>
 
-            {/* Ảnh bìa quán */}
-            {restaurant.image && (
+            {/* Ảnh bìa & Logo thương hiệu của quán */}
+            <div style={{ position: 'relative', marginBottom: 24 }}>
               <div
                 style={{
                   width: '100%',
-                  height: 160,
+                  height: 140,
                   borderRadius: 12,
                   overflow: 'hidden',
                   backgroundColor: '#F1F5F9',
@@ -307,7 +310,38 @@ export function OwnerSettingsView({
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               </div>
-            )}
+
+              {/* Logo / Avatar nổi góc trái */}
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: -18,
+                  left: 18,
+                  width: 54,
+                  height: 54,
+                  borderRadius: 14,
+                  overflow: 'hidden',
+                  backgroundColor: '#FFFFFF',
+                  border: '3px solid #FFFFFF',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {restaurant.image ? (
+                  <img
+                    src={resolveImageUrl(restaurant.image, DEFAULT_RESTAURANT_IMAGE)}
+                    alt={restaurant.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span style={{ fontWeight: 900, color: '#EA580C', fontSize: '1.15rem' }}>
+                    {(restaurant.name || 'QA').slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            </div>
 
             {/* Các hàng thông tin */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -748,13 +782,14 @@ export function OwnerSettingsView({
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
-                  Ảnh bìa nhà hàng (URL)
+                  Logo / Ảnh đại diện quán ăn (URL hoặc Tải ảnh từ máy)
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
                     type="text"
                     value={editImage}
                     onChange={(e) => setEditImage(e.target.value)}
+                    placeholder="https://... hoặc tải ảnh trực tiếp"
                     style={{
                       flex: 1,
                       height: 40,
@@ -801,6 +836,29 @@ export function OwnerSettingsView({
                     />
                   </label>
                 </div>
+                {editImage && (
+                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        border: '1px solid #CBD5E1',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <img
+                        src={resolveImageUrl(editImage, DEFAULT_RESTAURANT_IMAGE)}
+                        alt="Xem trước Logo"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                      Xem trước Logo / Ảnh đại diện quán ăn
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1012,21 +1070,83 @@ export function OwnerSettingsView({
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
-                  Mô tả quán
+                  Logo / Ảnh đại diện quán ăn (URL hoặc Tải ảnh từ máy)
                 </label>
-                <textarea
-                  rows={2}
-                  placeholder="Giới thiệu phong cách món ăn của quán..."
-                  value={createDescription}
-                  onChange={(e) => setCreateDescription(e.target.value)}
-                  style={{
-                    border: '1px solid #CBD5E1',
-                    borderRadius: 8,
-                    padding: '8px 12px',
-                    fontSize: '0.88rem',
-                    fontFamily: 'inherit',
-                  }}
-                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="https://... hoặc tải ảnh trực tiếp"
+                    value={createImage}
+                    onChange={(e) => setCreateImage(e.target.value)}
+                    style={{
+                      flex: 1,
+                      height: 40,
+                      border: '1px solid #CBD5E1',
+                      borderRadius: 8,
+                      padding: '0 10px',
+                      fontSize: '0.85rem',
+                    }}
+                  />
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '0 12px',
+                      background: '#FFF7ED',
+                      border: '1px solid #FED7AA',
+                      borderRadius: 8,
+                      color: '#EA580C',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Upload size={14} />
+                    <span>{uploadingCreateImage ? '...' : 'Tải ảnh'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          setUploadingCreateImage(true);
+                          const url = await uploadApi.uploadRestaurant(file);
+                          setCreateImage(url);
+                        } catch (err: any) {
+                          alert(`Lỗi upload: ${err?.message || 'Lỗi'}`);
+                        } finally {
+                          setUploadingCreateImage(false);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                {createImage && (
+                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        border: '1px solid #CBD5E1',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <img
+                        src={resolveImageUrl(createImage, DEFAULT_RESTAURANT_IMAGE)}
+                        alt="Xem trước Logo"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                      Xem trước Logo quán ăn
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>

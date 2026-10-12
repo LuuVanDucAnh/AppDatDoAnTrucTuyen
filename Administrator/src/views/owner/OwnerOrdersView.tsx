@@ -14,6 +14,10 @@ import {
   Receipt,
   FileEdit,
   RotateCw,
+  Search,
+  Calendar,
+  ArrowUpDown,
+  Filter,
 } from 'lucide-react';
 import type { AdminRestaurant, OrderStatus, OwnerOrder } from '../../services/types';
 import { ownerApi } from '../../services/api';
@@ -62,6 +66,12 @@ export function OwnerOrdersView({ restaurant, onRefreshStats }: OwnerOrdersViewP
   const [tab, setTab] = useState<TabKey>('PENDING');
   const [busyOrderId, setBusyOrderId] = useState<number | null>(null);
 
+  // Bộ lọc, Tìm kiếm và Sắp xếp Lịch sử đơn hàng
+  const [searchQuery, setSearchQuery] = useState('');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<'ALL' | 'DELIVERED' | 'CANCELLED'>('ALL');
+  const [historyDateFilter, setHistoryDateFilter] = useState<'all' | 'today' | '7days' | '30days'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'amount_desc' | 'amount_asc'>('newest');
+
   // Tính năng mockup: Tự động nhận đơn & Chuông báo
   const [autoAccept, setAutoAccept] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -76,8 +86,9 @@ export function OwnerOrdersView({ restaurant, onRefreshStats }: OwnerOrdersViewP
     if (!restaurant) return;
     try {
       setLoading(true);
-      const res = await ownerApi.getOrders(restaurant.id, { limit: 100 });
-      setOrders(res.data || []);
+      const res = await ownerApi.getOrders(restaurant.id, { limit: 200 });
+      const list = Array.isArray(res) ? res : ((res as any)?.data || []);
+      setOrders(list);
       onRefreshStats?.();
     } catch (err: any) {
       console.error('Không tải được đơn hàng:', err);
@@ -99,12 +110,104 @@ export function OwnerOrdersView({ restaurant, onRefreshStats }: OwnerOrdersViewP
     return map;
   }, [orders]);
 
-  // Danh sách đơn được chọn theo tab
+  // Danh sách đơn được chọn theo tab, kèm Tìm kiếm, Lọc & Sắp xếp
   const filteredOrders = useMemo(() => {
     const activeTabObj = TABS.find((t) => t.key === tab);
     if (!activeTabObj) return [];
-    return orders.filter((o) => (activeTabObj.statuses as readonly string[]).includes(o.status));
-  }, [orders, tab]);
+
+    let list = orders.filter((o) => (activeTabObj.statuses as readonly string[]).includes(o.status));
+
+    // Lọc riêng cho tab Lịch sử
+    if (tab === 'HISTORY') {
+      if (historyStatusFilter !== 'ALL') {
+        list = list.filter((o) => o.status === historyStatusFilter);
+      }
+
+      if (historyDateFilter !== 'all') {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        list = list.filter((o) => {
+          if (!o.created_at) return true;
+          const orderTime = new Date(o.created_at).getTime();
+          if (historyDateFilter === 'today') return orderTime >= startOfToday;
+          if (historyDateFilter === '7days') return orderTime >= now.getTime() - 7 * 86400 * 1000;
+          if (historyDateFilter === '30days') return orderTime >= now.getTime() - 30 * 86400 * 1000;
+          return true;
+        });
+      }
+    }
+
+    // Tìm kiếm từ khoá (áp dụng cho đơn: mã đơn, tên khách, số điện thoại, tên món)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((o) => {
+        const idMatch = String(o.id).includes(q) || `dh${o.id}`.includes(q) || `#${o.id}`.includes(q);
+        const nameMatch = (
+          o.customer_name ||
+          (o as any).user?.full_name ||
+          (o as any).address?.receiver_name ||
+          ''
+        )
+          .toLowerCase()
+          .includes(q);
+        const phoneMatch = (
+          o.customer_phone ||
+          (o as any).user?.phone_number ||
+          (o as any).address?.phone_number ||
+          ''
+        )
+          .toLowerCase()
+          .includes(q);
+        const addressMatch = (
+          o.delivery_address ||
+          (o as any).address?.address_detail ||
+          ''
+        )
+          .toLowerCase()
+          .includes(q);
+        const foodMatch = o.items?.some((it) =>
+          (it.food_name || (it as any).name || '').toLowerCase().includes(q)
+        );
+        return idMatch || nameMatch || phoneMatch || addressMatch || foodMatch;
+      });
+    }
+
+    // Sắp xếp đơn hàng
+    list = [...list].sort((a, b) => {
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      const amountA = Number(a.total_amount || 0);
+      const amountB = Number(b.total_amount || 0);
+
+      switch (sortBy) {
+        case 'newest':
+          return timeB - timeA;
+        case 'oldest':
+          return timeA - timeB;
+        case 'amount_desc':
+          return amountB - amountA;
+        case 'amount_asc':
+          return amountA - amountB;
+        default:
+          return timeB - timeA;
+      }
+    });
+
+    return list;
+  }, [orders, tab, historyStatusFilter, historyDateFilter, searchQuery, sortBy]);
+
+  // Thống kê tóm tắt các đơn sau lọc
+  const historySummary = useMemo(() => {
+    const delivered = filteredOrders.filter((o) => o.status === 'DELIVERED');
+    const cancelled = filteredOrders.filter((o) => o.status === 'CANCELLED');
+    const totalRev = delivered.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+    return {
+      total: filteredOrders.length,
+      deliveredCount: delivered.length,
+      cancelledCount: cancelled.length,
+      deliveredRevenue: totalRev,
+    };
+  }, [filteredOrders]);
 
   // Cập nhật trạng thái đơn hàng
   const handleUpdateStatus = async (orderId: number, nextStatus: OrderStatus) => {
@@ -274,7 +377,210 @@ export function OwnerOrdersView({ restaurant, onRefreshStats }: OwnerOrdersViewP
         </div>
       </div>
 
-      {/* 2. Danh sách đơn hàng dạng thẻ hiển thị đầy đặn trên Web */}
+      {/* 2. Thanh Tìm kiếm, Lọc & Sắp xếp đơn hàng (Đặc biệt cho Tab Lịch sử & toàn bộ đơn) */}
+      <div
+        style={{
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          borderRadius: 14,
+          padding: '12px 18px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          boxShadow: '0 2px 6px rgba(15, 23, 42, 0.03)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {/* Ô tìm kiếm đơn hàng */}
+          <div
+            style={{
+              flex: '1 1 280px',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Search
+              size={16}
+              color="#94A3B8"
+              style={{ position: 'absolute', left: 12, pointerEvents: 'none' }}
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm theo mã đơn (#12, DH1), tên khách, SĐT, món ăn..."
+              style={{
+                width: '100%',
+                height: 40,
+                paddingLeft: 38,
+                paddingRight: searchQuery ? 36 : 14,
+                borderRadius: 10,
+                border: '1px solid #CBD5E1',
+                fontSize: '0.85rem',
+                outline: 'none',
+                background: '#F8FAFC',
+                color: '#0F172A',
+                transition: 'all 0.2s',
+              }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#94A3B8',
+                  padding: 4,
+                }}
+                title="Xoá tìm kiếm"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Bộ lọc trạng thái con (chỉ hiển thị khi ở tab HISTORY) */}
+          {tab === 'HISTORY' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B' }}>Lọc:</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[
+                  { key: 'ALL', label: 'Tất cả' },
+                  { key: 'DELIVERED', label: 'Hoàn tất' },
+                  { key: 'CANCELLED', label: 'Đã huỷ' },
+                ].map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => setHistoryStatusFilter(s.key as any)}
+                    style={{
+                      padding: '7px 12px',
+                      borderRadius: 8,
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      border: historyStatusFilter === s.key ? '1px solid #EA580C' : '1px solid #E2E8F0',
+                      backgroundColor: historyStatusFilter === s.key ? '#FFF7ED' : '#F8FAFC',
+                      color: historyStatusFilter === s.key ? '#EA580C' : '#475569',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lọc thời gian */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Calendar size={15} color="#64748B" />
+            <select
+              value={historyDateFilter}
+              onChange={(e) => setHistoryDateFilter(e.target.value as any)}
+              style={{
+                height: 40,
+                padding: '0 12px',
+                borderRadius: 10,
+                border: '1px solid #CBD5E1',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: '#334155',
+                background: '#FFFFFF',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="all">Tất cả thời gian</option>
+              <option value="today">Hôm nay</option>
+              <option value="7days">7 ngày qua</option>
+              <option value="30days">30 ngày qua</option>
+            </select>
+          </div>
+
+          {/* Sắp xếp */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ArrowUpDown size={15} color="#64748B" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{
+                height: 40,
+                padding: '0 12px',
+                borderRadius: 10,
+                border: '1px solid #CBD5E1',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: '#334155',
+                background: '#FFFFFF',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="newest">Mới nhất trước</option>
+              <option value="oldest">Cũ nhất trước</option>
+              <option value="amount_desc">Giá trị cao nhất</option>
+              <option value="amount_asc">Giá trị thấp nhất</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Thanh kết quả lọc & tóm tắt */}
+        {(searchQuery || historyStatusFilter !== 'ALL' || historyDateFilter !== 'all' || tab === 'HISTORY') && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: 8,
+              borderTop: '1px solid #F1F5F9',
+              fontSize: '0.8rem',
+              color: '#64748B',
+              flexWrap: 'wrap',
+              gap: 8,
+            }}
+          >
+            <div>
+              Hiển thị <strong>{filteredOrders.length}</strong> đơn hàng
+              {tab === 'HISTORY' && (
+                <>
+                  {' '}(Hoàn tất:{' '}
+                  <strong style={{ color: '#10B981' }}>{historySummary.deliveredCount}</strong>, Đã huỷ:{' '}
+                  <strong style={{ color: '#EF4444' }}>{historySummary.cancelledCount}</strong>) • Tổng doanh thu hoàn tất:{' '}
+                  <strong style={{ color: '#EA580C' }}>{money(historySummary.deliveredRevenue)}đ</strong>
+                </>
+              )}
+            </div>
+
+            {(searchQuery || historyStatusFilter !== 'ALL' || historyDateFilter !== 'all' || sortBy !== 'newest') && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setHistoryStatusFilter('ALL');
+                  setHistoryDateFilter('all');
+                  setSortBy('newest');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#EA580C',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                }}
+              >
+                ✕ Đặt lại bộ lọc
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Danh sách đơn hàng dạng thẻ hiển thị đầy đặn trên Web */}
       {loading && orders.length === 0 ? (
         <div className="owner-web-panel" style={{ textAlign: 'center', padding: '60px 0' }}>
           <div style={{ color: '#EA580C', fontWeight: 700, fontSize: '0.95rem' }}>
@@ -285,12 +591,37 @@ export function OwnerOrdersView({ restaurant, onRefreshStats }: OwnerOrdersViewP
         <div className="owner-web-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <Receipt size={48} color="#CBD5E1" style={{ margin: '0 auto 12px auto' }} />
           <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#334155' }}>
-            Không có đơn hàng nào trong mục này
+            {searchQuery || historyStatusFilter !== 'ALL' || historyDateFilter !== 'all'
+              ? 'Không tìm thấy đơn hàng nào khớp với tìm kiếm / bộ lọc'
+              : 'Không có đơn hàng nào trong mục này'}
           </div>
           <p style={{ fontSize: '0.85rem', color: '#94A3B8', marginTop: 4 }}>
-            {tab === 'PENDING'
-              ? 'Khi khách hàng đặt món, đơn hàng mới sẽ xuất hiện tại đây cùng chuông báo.'
-              : `Hiện tại không có đơn nào ở trạng thái "${TABS.find((t) => t.key === tab)?.label}".`}
+            {searchQuery || historyStatusFilter !== 'ALL' || historyDateFilter !== 'all' ? (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setHistoryStatusFilter('ALL');
+                  setHistoryDateFilter('all');
+                }}
+                style={{
+                  marginTop: 8,
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  background: '#EA580C',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: '0.82rem',
+                }}
+              >
+                Xoá bộ lọc để xem tất cả
+              </button>
+            ) : tab === 'PENDING' ? (
+              'Khi khách hàng đặt món, đơn hàng mới sẽ xuất hiện tại đây cùng chuông báo.'
+            ) : (
+              `Hiện tại không có đơn nào ở trạng thái "${TABS.find((t) => t.key === tab)?.label}".`
+            )}
           </p>
         </div>
       ) : (
