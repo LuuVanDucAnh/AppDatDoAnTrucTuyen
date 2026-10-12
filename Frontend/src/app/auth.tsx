@@ -63,8 +63,36 @@ export default function AuthScreen() {
           ]
         );
       }
-    } else if (role === 'RESTAURANT_OWNER') {
-      router.replace('/owner/dashboard');
+    } else if (role === 'RESTAURANT_OWNER' || role === 'OWNER') {
+      const stored = await loadTokens();
+      const token = stored.accessToken || getAccessToken() || '';
+      const refresh = stored.refreshToken || getRefreshToken() || '';
+      const userParam = encodeURIComponent(JSON.stringify(userObj));
+      const targetUrl = `${ADMIN_WEB_URL}/?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refresh)}&user=${userParam}&portal=owner`;
+
+      if (Platform.OS === 'web') {
+        window.location.href = targetUrl;
+      } else {
+        Alert.alert(
+          'Đăng nhập Đối tác Nhà hàng thành công',
+          'Kênh quản lý quán ăn, tiếp nhận đơn và chỉnh sửa thực đơn hiện được vận hành tối ưu trên Cổng Web (Merchant Web Portal).',
+          [
+            {
+              text: 'Mở Kênh Quán Ăn Web',
+              onPress: () => {
+                Linking.openURL(targetUrl).catch(() => {
+                  Alert.alert('Không thể mở trình duyệt', `Vui lòng truy cập: ${ADMIN_WEB_URL}`);
+                });
+              },
+            },
+            {
+              text: 'Xem trên Mobile',
+              style: 'cancel',
+              onPress: () => router.replace('/owner/dashboard'),
+            },
+          ]
+        );
+      }
     } else {
       router.replace('/');
     }

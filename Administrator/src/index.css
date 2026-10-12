@@ -1407,4 +1407,56 @@ body {
   flex-shrink: 0;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   MERCHANT / OWNER PORTAL & PANEL STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+.panel {
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-pill:hover {
+  background: #f1f5f9;
+  color: var(--text-primary);
+}
+
+.filter-pill.active {
+  background: #fff7ed;
+  color: #ea580c;
+  border-color: #fdba74;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.12);
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
 

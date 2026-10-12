@@ -15,6 +15,7 @@ interface HeaderProps {
   onSearch?: (q: string) => void;
   onCreateNotification?: () => void;
   onQuickSettlement?: () => void;
+  onSwitchToOwnerPortal?: () => void;
 }
 
 export function Header({
@@ -22,6 +23,7 @@ export function Header({
   onSearch,
   onCreateNotification,
   onQuickSettlement,
+  onSwitchToOwnerPortal,
 }: HeaderProps) {
   const adminName = currentUser?.full_name || 'Lê Hoàng Long';
 
@@ -48,6 +50,23 @@ export function Header({
 
       {/* Right side: Quick Action Buttons & Profile */}
       <div className="header-actions">
+        {onSwitchToOwnerPortal && (
+          <button
+            className="btn-header-action"
+            onClick={onSwitchToOwnerPortal}
+            style={{
+              background: 'rgba(234, 88, 12, 0.12)',
+              border: '1px solid rgba(234, 88, 12, 0.3)',
+              color: '#ea580c',
+              fontWeight: 700,
+            }}
+            title="Chuyển sang giao diện Kênh Đối Tác Quán Ăn"
+          >
+            <span style={{ fontSize: '0.9rem' }}>🏪</span>
+            <span>Kênh Quán Ăn</span>
+          </button>
+        )}
+
         <button
           className="btn-header-action btn-header-orange"
           onClick={onCreateNotification}
