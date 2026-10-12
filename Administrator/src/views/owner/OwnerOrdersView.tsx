@@ -9,14 +9,16 @@ import {
   VolumeX,
   Zap,
   ArrowRight,
-  Bicycle,
+  Bike,
   Utensils,
   Receipt,
   FileEdit,
+  RotateCw,
 } from 'lucide-react';
 import type { AdminRestaurant, OrderStatus, OwnerOrder } from '../../services/types';
 import { ownerApi } from '../../services/api';
 import './owner-mobile-ui.css';
+import './owner-web.css';
 
 interface OwnerOrdersViewProps {
   restaurant: AdminRestaurant | null;
@@ -98,446 +100,527 @@ export function OwnerOrdersView({ restaurant, onRefreshStats }: OwnerOrdersViewP
   }, [orders]);
 
   // Danh sách đơn được chọn theo tab
-  const shown = useMemo(() => {
-    const active = TABS.find((t) => t.key === tab)!;
-    return orders.filter((o) => (active.statuses as readonly string[]).includes(o.status));
+  const filteredOrders = useMemo(() => {
+    const activeTabObj = TABS.find((t) => t.key === tab);
+    if (!activeTabObj) return [];
+    return orders.filter((o) => (activeTabObj.statuses as readonly string[]).includes(o.status));
   }, [orders, tab]);
 
-  // Chuyển trạng thái
-  const changeStatus = async (order: OwnerOrder, next: OrderStatus, successMsg?: string) => {
+  // Cập nhật trạng thái đơn hàng
+  const handleUpdateStatus = async (orderId: number, nextStatus: OrderStatus) => {
     if (!restaurant) return;
-    setBusyOrderId(order.id);
     try {
-      await ownerApi.updateOrderStatus(restaurant.id, order.id, next);
-      await loadOrders();
-      showToast(successMsg ?? 'Thao tác thành công');
+      setBusyOrderId(orderId);
+      const updated = await ownerApi.updateOrderStatus(restaurant.id, orderId, nextStatus);
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: updated.status } : o)));
+      onRefreshStats?.();
+      showToast(
+        nextStatus === 'PREPARING'
+          ? `Đã nhận đơn #${orderId}! Nhà bếp đang chuẩn bị.`
+          : nextStatus === 'DELIVERING'
+          ? `Đã bàn giao đơn #${orderId} cho tài xế!`
+          : nextStatus === 'DELIVERED'
+          ? `Đơn hàng #${orderId} đã giao thành công!`
+          : `Đã cập nhật trạng thái đơn #${orderId}.`
+      );
     } catch (err: any) {
-      alert(`Lỗi: ${err?.message || 'Không thể đổi trạng thái'}`);
+      alert(`Không thể chuyển trạng thái đơn: ${err?.message || 'Lỗi thao tác'}`);
     } finally {
       setBusyOrderId(null);
     }
   };
 
-  const confirmReject = (order: OwnerOrder) => {
-    if (confirm(`Hủy đơn #DH-${order.id} của ${order.user?.full_name ?? 'khách'}?`)) {
-      changeStatus(order, 'CANCELLED', 'Đã từ chối đơn hàng');
-    }
+  // Từ chối đơn
+  const handleReject = async (orderId: number) => {
+    if (!confirm(`Bạn chắc chắn muốn từ chối đơn hàng #${orderId}?`)) return;
+    await handleUpdateStatus(orderId, 'CANCELLED');
   };
 
+  if (!restaurant) {
+    return (
+      <div className="owner-web-view">
+        <div className="owner-web-panel" style={{ textAlign: 'center', padding: '50px 20px' }}>
+          <Receipt size={44} color="#94A3B8" style={{ margin: '0 auto 12px auto' }} />
+          <h3>Chưa chọn nhà hàng</h3>
+          <p style={{ color: '#64748B' }}>Vui lòng chọn nhà hàng để xem danh sách đơn hàng trực tuyến.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="owner-m-content">
-      {/* Toast thông báo */}
+    <div className="owner-web-view">
+      {/* Toast Alert */}
       {toastMessage && (
         <div
           style={{
             position: 'fixed',
-            top: 20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: 'rgba(17, 24, 39, 0.9)',
-            color: '#ffffff',
-            padding: '10px 20px',
-            borderRadius: 999,
-            fontSize: '13px',
+            bottom: 24,
+            right: 24,
+            backgroundColor: '#0F172A',
+            color: '#FFFFFF',
+            padding: '12px 20px',
+            borderRadius: 12,
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+            zIndex: 9999,
+            fontSize: '0.88rem',
             fontWeight: 700,
-            zIndex: 1000,
-            boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
           }}
         >
-          {toastMessage}
+          <Check size={18} color="#10B981" />
+          <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* 1. Banner cảnh báo đơn mới theo mockup */}
-      {counts.PENDING > 0 && (
-        <div className="owner-m-alert-banner">
-          <div className="owner-m-alert-left">
-            <div className="owner-m-alert-dot" />
-            <div>
-              <div className="owner-m-alert-title">⚠️ {counts.PENDING} đơn mới vừa đến!</div>
-              <div className="owner-m-alert-sub">
-                {soundEnabled ? 'Chuông báo đơn hàng đang bật' : 'Chuông báo đang tắt'}
-              </div>
-            </div>
-          </div>
+      {/* 1. Thanh điều khiển đơn hàng (Tabs & Công cụ thông minh) */}
+      <div className="owner-web-orders-controls">
+        {/* 4 Tabs chuẩn mobile */}
+        <div className="owner-web-status-tabs">
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            const c = counts[t.key];
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`owner-web-tab-btn ${active ? 'active' : ''}`}
+              >
+                <span>{t.label}</span>
+                <span className="owner-web-tab-badge">{c}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Công cụ bên phải: Chuông báo, Tự nhận đơn, Nút tải lại */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Nút bật/tắt âm thanh chuông */}
           <button
-            className="owner-m-sound-btn"
             onClick={() => setSoundEnabled(!soundEnabled)}
-            title={soundEnabled ? 'Tắt chuông' : 'Bật chuông'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: soundEnabled ? '#FFEDD5' : '#F1F5F9',
+              border: soundEnabled ? '1px solid #FED7AA' : '1px solid #CBD5E1',
+              color: soundEnabled ? '#C2410C' : '#64748B',
+              padding: '7px 12px',
+              borderRadius: 8,
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+            title={soundEnabled ? 'Đang bật chuông báo đơn mới' : 'Đang tắt chuông'}
           >
-            {soundEnabled ? <Volume2 size={18} color="#C2410C" /> : <VolumeX size={18} color="#94A3B8" />}
+            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            <span>{soundEnabled ? 'Chuông: Bật' : 'Chuông: Tắt'}</span>
+          </button>
+
+          {/* Công tắc tự động nhận đơn */}
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              color: '#334155',
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            <Zap size={15} color={autoAccept ? '#EA580C' : '#94A3B8'} />
+            <span>Tự nhận đơn</span>
+            <div className="owner-m-switch">
+              <input
+                type="checkbox"
+                checked={autoAccept}
+                onChange={(e) => {
+                  setAutoAccept(e.target.checked);
+                  showToast(
+                    e.target.checked
+                      ? 'Đã bật tự động nhận đơn mới!'
+                      : 'Đã tắt chế độ tự động nhận đơn.'
+                  );
+                }}
+              />
+              <span className="owner-m-slider" />
+            </div>
+          </label>
+
+          <button
+            onClick={loadOrders}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              padding: '7px 12px',
+              borderRadius: 8,
+              color: '#475569',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            title="Tải lại danh sách"
+          >
+            <RotateCw size={14} className={loading ? 'spinning' : ''} />
+            <span>Làm mới</span>
           </button>
         </div>
-      )}
-
-      {/* 2. Thanh Tabs lọc trạng thái theo mockup */}
-      <div className="owner-m-tabs-scroll">
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          const count = counts[t.key];
-          return (
-            <button
-              key={t.key}
-              className={`owner-m-tab-pill ${active ? 'active' : ''}`}
-              onClick={() => setTab(t.key)}
-            >
-              {t.label}
-              {count > 0 ? ` ${count}` : ''}
-            </button>
-          );
-        })}
       </div>
 
-      {/* 3. Thanh công tắc: "Tự động nhận đơn khi mở cửa" */}
-      <div className="owner-m-auto-accept-row">
-        <div className="owner-m-auto-accept-left">
-          <Zap size={17} color="#10B981" />
-          <span>Tự động nhận đơn khi mở cửa</span>
-        </div>
-        <label className="owner-m-switch">
-          <input
-            type="checkbox"
-            checked={autoAccept}
-            onChange={(e) => setAutoAccept(e.target.checked)}
-          />
-          <span className="owner-m-slider" />
-        </label>
-      </div>
-
-      {/* 4. Danh sách thẻ đơn hàng */}
+      {/* 2. Danh sách đơn hàng dạng thẻ hiển thị đầy đặn trên Web */}
       {loading && orders.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '50px 0', color: '#6B7280' }}>
-          Đang tải danh sách đơn...
-        </div>
-      ) : shown.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94A3B8' }}>
-          <Receipt size={48} color="#CBD5E1" style={{ margin: '0 auto 10px auto' }} />
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#334155' }}>
-            Không có đơn nào ở mục này
+        <div className="owner-web-panel" style={{ textAlign: 'center', padding: '60px 0' }}>
+          <div style={{ color: '#EA580C', fontWeight: 700, fontSize: '0.95rem' }}>
+            Đang tải dữ liệu đơn hàng...
           </div>
-          <div style={{ fontSize: '12px', marginTop: 4 }}>Các đơn hàng mới sẽ xuất hiện tại đây</div>
+        </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="owner-web-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <Receipt size={48} color="#CBD5E1" style={{ margin: '0 auto 12px auto' }} />
+          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#334155' }}>
+            Không có đơn hàng nào trong mục này
+          </div>
+          <p style={{ fontSize: '0.85rem', color: '#94A3B8', marginTop: 4 }}>
+            {tab === 'PENDING'
+              ? 'Khi khách hàng đặt món, đơn hàng mới sẽ xuất hiện tại đây cùng chuông báo.'
+              : `Hiện tại không có đơn nào ở trạng thái "${TABS.find((t) => t.key === tab)?.label}".`}
+          </p>
         </div>
       ) : (
-        shown.map((order) => {
-          const busy = busyOrderId === order.id;
-          const addr = order.address;
-          const isCOD = order.payment?.payment_method === 'CASH';
-          const payLabel = isCOD ? 'Tiền mặt (COD)' : `Ví ${order.payment?.payment_method ?? 'Online'}`;
+        <div className="owner-web-orders-grid">
+          {filteredOrders.map((order) => {
+            const isBusy = busyOrderId === order.id;
+            const items = order.items || [];
+            const custName = (order as any).user?.full_name || order.customer_name || 'Khách hàng';
+            const custPhone = (order as any).user?.phone_number || order.customer_phone || '';
+            const deliveryAddr = order.delivery_address || 'Địa chỉ giao hàng';
 
-          // A. Trạng thái: CHỜ DUYỆT (PENDING)
-          if (order.status === 'PENDING') {
             return (
-              <div key={order.id} className="owner-m-card">
-                {/* Header: CHỜ DUYỆT + Mã #DH-xxxx + Thời gian */}
-                <div className="owner-m-card-header-row">
-                  <div className="owner-m-pending-badge">CHỜ DUYỆT</div>
-                  <span className="owner-m-order-id">#DH-{order.id}</span>
-                  <div className="owner-m-order-time">
-                    <Clock size={12} color="#78716C" />
-                    <span>{timeAgo(order.created_at)}</span>
-                  </div>
-                </div>
-
-                {/* Khách hàng & SĐT */}
-                <div>
-                  <div className="owner-m-customer-row">
-                    <span className="owner-m-customer-name">
-                      {order.address?.receiver_name || order.user?.full_name || 'Khách hàng'}
-                    </span>
-                    {(order.address?.phone_number || order.user?.phone_number) && (
-                      <a
-                        href={`tel:${order.address?.phone_number || order.user?.phone_number}`}
-                        className="owner-m-phone-btn"
-                      >
-                        <Phone size={13} color="#C2410C" />
-                        <span>{order.address?.phone_number || order.user?.phone_number}</span>
-                      </a>
-                    )}
-                  </div>
-                  {addr && (
-                    <div className="owner-m-addr-row">
-                      <MapPin size={13} color="#EA580C" style={{ marginTop: 2, flexShrink: 0 }} />
-                      <span className="owner-m-addr-text">
-                        {[addr.address_detail, addr.ward, addr.district, addr.city]
-                          .filter(Boolean)
-                          .join(', ')}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Món ăn */}
-                <div style={{ borderTop: '1px solid #F8FAFC', paddingTop: 6 }}>
-                  {(order.items ?? []).map((it, idx) => {
-                    const isFirst = idx === 0;
-                    return (
-                      <div key={it.id || idx} className="owner-m-item-row">
-                        {isFirst && (
-                          <img
-                            src={it.food?.image || DEFAULT_FOOD_IMG}
-                            alt=""
-                            className="owner-m-food-thumb"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = DEFAULT_FOOD_IMG;
-                            }}
-                          />
-                        )}
-                        <div style={{ flex: 1, marginLeft: isFirst ? 10 : 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>
-                            <span className="owner-m-item-name">
-                              <span className="owner-m-item-qty">{it.quantity}x </span>
-                              {it.food_name || it.food?.name}
-                            </span>
-                            <span className="owner-m-item-price">
-                              {money(it.subtotal || Number(it.price) * it.quantity)}đ
-                            </span>
-                          </div>
-                          <div className="owner-m-item-subnote">
-                            {idx === 0
-                              ? 'Thêm mỡ hành, ớt hiểm riêng'
-                              : idx === 1
-                              ? 'Nấu nóng hổi'
-                              : 'Kèm nước sốt riêng'}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Ghi chú của khách (Note Box màu vàng kem) */}
-                <div className="owner-m-note-box">
-                  <FileEdit size={14} color="#B45309" style={{ marginTop: 1, flexShrink: 0 }} />
-                  <span>
-                    Ghi chú: "{order.note || 'Xin thêm nước mắm ớt, ớt để riêng giúp mình nhé quán ơi!'}"
-                  </span>
-                </div>
-
-                {/* Thanh toán & Tổng thu */}
-                <div className="owner-m-total-row">
-                  <div className="owner-m-pay-badge">{payLabel}</div>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', color: '#64748B' }}>Tổng thu:&nbsp;</span>
-                    <span className="owner-m-total-val">{money(order.total_amount)}đ</span>
-                  </div>
-                </div>
-
-                {/* 2 Nút thao tác: Từ chối & Nhận đơn ngay */}
-                <div className="owner-m-action-row">
-                  <button
-                    className="owner-m-reject-btn"
-                    disabled={busy}
-                    onClick={() => confirmReject(order)}
-                  >
-                    <X size={16} color="#DC2626" />
-                    <span>Từ chối</span>
-                  </button>
-
-                  <button
-                    className="owner-m-accept-btn"
-                    disabled={busy}
-                    onClick={() => changeStatus(order, 'CONFIRMED', 'Đã nhận đơn hàng!')}
-                  >
-                    <Check size={16} color="#FFFFFF" />
-                    <span>Nhận đơn ngay</span>
-                  </button>
-                </div>
-              </div>
-            );
-          }
-
-          // B. Trạng thái: ĐANG NẤU (CONFIRMED / PREPARING)
-          if (order.status === 'CONFIRMED' || order.status === 'PREPARING') {
-            return (
-              <div key={order.id} className="owner-m-card">
-                {/* Header: ĐANG NẤU MÓN + #DH-xxxx + Nhận lúc 11:20 */}
-                <div className="owner-m-card-header-row">
-                  <div className="owner-m-cooking-badge">ĐANG NẤU MÓN</div>
-                  <span className="owner-m-order-id">#DH-{order.id}</span>
-                  <span style={{ fontSize: '11px', color: '#78716C', marginLeft: 'auto' }}>
-                    Nhận lúc {formatClock(order.created_at)}
-                  </span>
-                </div>
-
-                {/* Khách hàng */}
-                <div className="owner-m-customer-row">
-                  <div>
-                    <div className="owner-m-customer-name">
-                      {order.address?.receiver_name || order.user?.full_name || 'Khách hàng'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: 2 }}>
-                      {order.items?.length ?? 1} món •{' '}
-                      {order.items?.map((i) => i.food_name || i.food?.name).join(', ') || 'Món chính'}
-                    </div>
-                  </div>
-                  {(order.address?.phone_number || order.user?.phone_number) && (
-                    <a
-                      href={`tel:${order.address?.phone_number || order.user?.phone_number}`}
-                      className="owner-m-phone-btn"
+              <div key={order.id} className="owner-web-order-card">
+                {/* Header thẻ đơn: Mã đơn + Huy hiệu trạng thái + Thời gian */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 6,
+                        fontSize: '0.78rem',
+                        fontWeight: 800,
+                        backgroundColor:
+                          order.status === 'PENDING'
+                            ? '#FEF3C7'
+                            : order.status === 'PREPARING' || order.status === 'CONFIRMED'
+                            ? '#FFEDD5'
+                            : order.status === 'DELIVERING'
+                            ? '#E0E7FF'
+                            : order.status === 'DELIVERED'
+                            ? '#DCFCE7'
+                            : '#FEE2E2',
+                        color:
+                          order.status === 'PENDING'
+                            ? '#B45309'
+                            : order.status === 'PREPARING' || order.status === 'CONFIRMED'
+                            ? '#C2410C'
+                            : order.status === 'DELIVERING'
+                            ? '#4338CA'
+                            : order.status === 'DELIVERED'
+                            ? '#15803D'
+                            : '#B91C1C',
+                      }}
                     >
-                      <Phone size={13} color="#C2410C" />
-                      <span>Gọi khách</span>
-                    </a>
-                  )}
-                </div>
+                      {order.status === 'PENDING'
+                        ? 'Chờ duyệt'
+                        : order.status === 'PREPARING'
+                        ? 'Đang nấu'
+                        : order.status === 'CONFIRMED'
+                        ? 'Đã nhận'
+                        : order.status === 'DELIVERING'
+                        ? 'Đang giao'
+                        : order.status === 'DELIVERED'
+                        ? 'Đã giao'
+                        : 'Đã hủy'}
+                    </span>
 
-                {/* Box Bếp đang chế biến */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    backgroundColor: '#FFFBEB',
-                    border: '1px solid #FEF3C7',
-                    borderRadius: 10,
-                    padding: 10,
-                  }}
-                >
-                  <div
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0F172A' }}>
+                      #{order.id}
+                    </span>
+                  </div>
+
+                  <span
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      backgroundColor: '#FEF3C7',
+                      fontSize: '0.76rem',
+                      color: '#64748B',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      gap: 4,
                     }}
                   >
-                    <Utensils size={16} color="#B45309" />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#92400E' }}>
-                      Bếp đang chế biến
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#B45309' }}>
-                      Dự kiến xong trong 8 phút nữa
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="owner-m-pay-badge" style={{ display: 'inline-block', marginBottom: 2 }}>
-                      {order.payment?.status === 'PAID' ? 'Đã thanh toán Online' : payLabel}
-                    </div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#111827' }}>
-                      {money(order.total_amount)}đ
-                    </div>
-                  </div>
-                </div>
-
-                {/* Nút: Bàn giao cho Shipper ➔ */}
-                <button
-                  className="owner-m-handover-btn"
-                  disabled={busy}
-                  onClick={() => changeStatus(order, 'DELIVERING', 'Đã bàn giao cho Shipper')}
-                >
-                  <span>Bàn giao cho Shipper</span>
-                  <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 4 }} />
-                </button>
-              </div>
-            );
-          }
-
-          // C. Trạng thái: ĐANG GIAO HÀNG (DELIVERING)
-          if (order.status === 'DELIVERING') {
-            return (
-              <div key={order.id} className="owner-m-card">
-                <div className="owner-m-card-header-row">
-                  <div className="owner-m-delivering-badge">ĐANG GIAO HÀNG</div>
-                  <span className="owner-m-order-id">#DH-{order.id}</span>
-                  <span style={{ fontSize: '11px', color: '#78716C', marginLeft: 'auto' }}>
-                    Rời quán lúc {formatClock(order.updated_at || order.created_at)}
+                    <Clock size={13} />
+                    <span>{timeAgo(order.created_at)}</span>
                   </span>
                 </div>
 
-                {/* Shipper info row */}
+                {/* Thông tin khách hàng & Địa chỉ */}
                 <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
                     backgroundColor: '#F8FAFC',
                     border: '1px solid #F1F5F9',
                     borderRadius: 10,
-                    padding: 10,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
                   }}
                 >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1E293B' }}>
+                      {custName}
+                    </div>
+
+                    {custPhone && (
+                      <a
+                        href={`tel:${custPhone}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          backgroundColor: '#FFEDD5',
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          color: '#C2410C',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <Phone size={12} />
+                        <span>{custPhone}</span>
+                      </a>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: '0.8rem', color: '#475569' }}>
+                    <MapPin size={14} color="#94A3B8" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span style={{ lineHeight: 1.4 }}>{deliveryAddr}</span>
+                  </div>
+                </div>
+
+                {/* Danh sách món ăn trong đơn */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 0' }}>
+                  {items.map((it, idx) => (
+                    <div
+                      key={it.id || idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        borderBottom: idx < items.length - 1 ? '1px solid #F8FAFC' : 'none',
+                        paddingBottom: 6,
+                      }}
+                    >
+                      <img
+                        src={it.food_image || it.image || DEFAULT_FOOD_IMG}
+                        alt="Dish"
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 8,
+                          objectFit: 'cover',
+                          backgroundColor: '#E2E8F0',
+                          flexShrink: 0,
+                        }}
+                      />
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E293B' }}>
+                          <span style={{ color: '#EA580C', fontWeight: 800, marginRight: 6 }}>
+                            {it.quantity}x
+                          </span>
+                          {it.food_name || it.name || 'Món ăn'}
+                        </div>
+                        {it.notes && (
+                          <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: 1 }}>
+                            Ghi chú: {it.notes}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0F172A' }}>
+                        {money(Number(it.price) * it.quantity)}đ
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Ghi chú bếp của khách hàng (nếu có) */}
+                {order.note && (
                   <div
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      backgroundColor: '#FFEDD5',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      alignItems: 'flex-start',
+                      gap: 6,
+                      backgroundColor: '#FFFBEB',
+                      border: '1px solid #FEF3C7',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      fontSize: '0.78rem',
+                      color: '#B45309',
                     }}
                   >
-                    <Bicycle size={18} color="#C2410C" />
+                    <FileEdit size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>Lưu ý của khách: "{order.note}"</span>
                   </div>
-                  <div style={{ flex: 1, marginLeft: 10 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>
-                      Trần Văn Hùng (Shipper)
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>
-                      Yamaha Sirius • 59-P1 839.22
-                    </div>
-                  </div>
-                  <a href="tel:0908765432" className="owner-m-phone-btn">
-                    <Phone size={13} color="#C2410C" />
-                  </a>
-                </div>
+                )}
 
-                <div className="owner-m-total-row">
-                  <div className="owner-m-pay-badge">{payLabel}</div>
-                  <span className="owner-m-total-val">{money(order.total_amount)}đ</span>
-                </div>
-
-                <button
-                  className="owner-m-done-btn"
-                  disabled={busy}
-                  onClick={() => changeStatus(order, 'DELIVERED', 'Đơn hàng đã hoàn tất!')}
+                {/* Hàng tổng tiền & phương thức thanh toán */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: 8,
+                    borderTop: '1px solid #F1F5F9',
+                  }}
                 >
-                  <Check size={16} color="#FFFFFF" />
-                  <span>Xác nhận giao thành công</span>
-                </button>
+                  <span
+                    style={{
+                      fontSize: '0.76rem',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      backgroundColor: '#F1F5F9',
+                      color: '#475569',
+                    }}
+                  >
+                    {order.payment_method === 'COD' ? 'Tiền mặt khi nhận (COD)' : 'Đã thanh toán Online'}
+                  </span>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '0.76rem', color: '#64748B', marginRight: 6 }}>Tổng cộng:</span>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#EA580C' }}>
+                      {money(order.total_amount)}đ
+                    </span>
+                  </div>
+                </div>
+
+                {/* Các nút hành động chuyển đổi trạng thái */}
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  {order.status === 'PENDING' && (
+                    <>
+                      <button
+                        onClick={() => handleReject(order.id)}
+                        disabled={isBusy}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          borderRadius: 10,
+                          backgroundColor: '#FEF2F2',
+                          border: '1px solid #FECACA',
+                          color: '#DC2626',
+                          fontWeight: 700,
+                          fontSize: '0.84rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Từ chối
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(order.id, 'PREPARING')}
+                        disabled={isBusy}
+                        style={{
+                          flex: 2,
+                          padding: '10px',
+                          borderRadius: 10,
+                          backgroundColor: '#EA580C',
+                          border: 'none',
+                          color: '#FFFFFF',
+                          fontWeight: 800,
+                          fontSize: '0.86rem',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 12px rgba(234, 88, 12, 0.25)',
+                        }}
+                      >
+                        {isBusy ? 'Đang nhận...' : 'Nhận đơn & Nấu món'}
+                      </button>
+                    </>
+                  )}
+
+                  {(order.status === 'PREPARING' || order.status === 'CONFIRMED') && (
+                    <button
+                      onClick={() => handleUpdateStatus(order.id, 'DELIVERING')}
+                      disabled={isBusy}
+                      style={{
+                        width: '100%',
+                        padding: '11px',
+                        borderRadius: 10,
+                        backgroundColor: '#C2410C',
+                        border: 'none',
+                        color: '#FFFFFF',
+                        fontWeight: 800,
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        boxShadow: '0 4px 12px rgba(194, 65, 12, 0.25)',
+                      }}
+                    >
+                      <Bike size={16} />
+                      <span>{isBusy ? 'Đang cập nhật...' : 'Bàn giao cho Shipper'}</span>
+                    </button>
+                  )}
+
+                  {order.status === 'DELIVERING' && (
+                    <button
+                      onClick={() => handleUpdateStatus(order.id, 'DELIVERED')}
+                      disabled={isBusy}
+                      style={{
+                        width: '100%',
+                        padding: '11px',
+                        borderRadius: 10,
+                        backgroundColor: '#16A34A',
+                        border: 'none',
+                        color: '#FFFFFF',
+                        fontWeight: 800,
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <Check size={16} />
+                      <span>{isBusy ? 'Đang lưu...' : 'Xác nhận đã giao thành công'}</span>
+                    </button>
+                  )}
+
+                  {(order.status === 'DELIVERED' || order.status === 'CANCELLED') && (
+                    <div
+                      style={{
+                        width: '100%',
+                        textAlign: 'center',
+                        fontSize: '0.78rem',
+                        color: '#94A3B8',
+                        padding: '6px 0',
+                      }}
+                    >
+                      Đơn hàng đã kết thúc
+                    </div>
+                  )}
+                </div>
               </div>
             );
-          }
-
-          // D. Trạng thái: LỊCH SỬ (DELIVERED / CANCELLED)
-          return (
-            <div key={order.id} className="owner-m-card">
-              <div className="owner-m-card-header-row">
-                <div
-                  className={
-                    order.status === 'DELIVERED'
-                      ? 'owner-m-delivered-badge'
-                      : 'owner-m-cancelled-badge'
-                  }
-                >
-                  {order.status === 'DELIVERED' ? 'HOÀN THÀNH' : 'ĐÃ HỦY'}
-                </div>
-                <span className="owner-m-order-id">#DH-{order.id}</span>
-                <span style={{ fontSize: '11px', color: '#78716C', marginLeft: 'auto' }}>
-                  {formatClock(order.created_at)}
-                </span>
-              </div>
-
-              <div className="owner-m-customer-row">
-                <span className="owner-m-customer-name">
-                  {order.address?.receiver_name || order.user?.full_name || 'Khách hàng'}
-                </span>
-                <span style={{ fontSize: '13px', fontWeight: 800, color: '#111827' }}>
-                  {money(order.total_amount)}đ
-                </span>
-              </div>
-
-              <div style={{ fontSize: '11px', color: '#64748B' }}>
-                {order.items?.length ?? 1} món •{' '}
-                {order.items?.map((i) => `${i.quantity}x ${i.food_name || i.food?.name}`).join(', ')}
-              </div>
-            </div>
-          );
-        })
+          })}
+        </div>
       )}
     </div>
   );

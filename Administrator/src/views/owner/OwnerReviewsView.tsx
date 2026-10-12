@@ -2,17 +2,13 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   Star,
   MessageSquare,
-  ThumbsUp,
-  User,
-  Calendar,
-  AlertCircle,
+  Receipt,
   RotateCw,
-  ShoppingBag,
-  Filter,
 } from 'lucide-react';
 import type { AdminRestaurant, OwnerReview } from '../../services/types';
 import { ownerApi } from '../../services/api';
-import { formatDate, formatTimeAgo } from '../../services/utils';
+import './owner-mobile-ui.css';
+import './owner-web.css';
 
 interface OwnerReviewsViewProps {
   restaurant: AdminRestaurant | null;
@@ -21,286 +17,316 @@ interface OwnerReviewsViewProps {
 export function OwnerReviewsView({ restaurant }: OwnerReviewsViewProps) {
   const [reviews, setReviews] = useState<OwnerReview[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [starFilter, setStarFilter] = useState<number | 'ALL'>('ALL');
+  const [starFilter, setStarFilter] = useState<number | 'all'>('all');
 
-  const fetchReviews = async () => {
+  const loadReviews = async () => {
     if (!restaurant) return;
     try {
       setLoading(true);
-      setError(null);
-      const res = await ownerApi.getReviews(restaurant.id, {
-        rating: starFilter === 'ALL' ? undefined : starFilter,
-        limit: 100,
-      });
+      const res = await ownerApi.getReviews(restaurant.id, { limit: 100 });
       setReviews(res.data || []);
     } catch (err: any) {
-      setError(err?.message || 'Không thể tải đánh giá của quán.');
+      console.error('Không tải được đánh giá:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchReviews();
-  }, [restaurant?.id, starFilter]);
+    loadReviews();
+  }, [restaurant?.id]);
 
-  // Thống kê phân bổ sao
+  // Thống kê phân bổ sao chuẩn như mobile stats
   const stats = useMemo(() => {
     const total = reviews.length;
     if (total === 0) {
-      return { avg: 5.0, total: 0, counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } };
+      return { avg: 5.0, total: 0, counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as Record<number, number> };
     }
-    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+
+    const counts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     let sum = 0;
     reviews.forEach((r) => {
-      const star = Math.min(5, Math.max(1, Math.round(r.rating || 5))) as 1 | 2 | 3 | 4 | 5;
-      counts[star]++;
-      sum += r.rating;
+      const star = Math.min(5, Math.max(1, Math.round(Number(r.rating || 5))));
+      counts[star] = (counts[star] || 0) + 1;
+      sum += Number(r.rating || 5);
     });
-    return {
-      avg: Number((sum / total).toFixed(1)),
-      total,
-      counts,
-    };
+
+    const avg = Number((sum / total).toFixed(1));
+    return { avg, total, counts };
   }, [reviews]);
+
+  const filteredReviews = useMemo(() => {
+    if (starFilter === 'all') return reviews;
+    return reviews.filter((r) => Math.round(Number(r.rating)) === starFilter);
+  }, [reviews, starFilter]);
 
   if (!restaurant) {
     return (
-      <div className="view-container">
-        <div className="empty-state-card" style={{ padding: '60px 20px', textAlign: 'center' }}>
-          <Star size={48} color="#94a3b8" style={{ margin: '0 auto 16px auto' }} />
+      <div className="owner-web-view">
+        <div className="owner-web-panel" style={{ textAlign: 'center', padding: '50px 20px' }}>
+          <Star size={44} color="#94A3B8" style={{ margin: '0 auto 12px auto' }} />
           <h3>Chưa chọn nhà hàng</h3>
-          <p style={{ color: '#64748b' }}>Vui lòng chọn nhà hàng để xem đánh giá từ khách hàng.</p>
+          <p style={{ color: '#64748B' }}>Vui lòng chọn nhà hàng để xem đánh giá từ thực khách.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="view-container" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Overview Star Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>
-        {/* Điểm trung bình */}
+    <div className="owner-web-view">
+      {/* 1. Thẻ tổng quan điểm sao & Phân bổ sao (Y trang mobile nhưng rộng rãi cho Web) */}
+      <div className="owner-web-reviews-summary">
+        {/* Điểm lớn bên trái */}
         <div
-          className="panel"
           style={{
-            padding: 24,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            borderRight: '1px solid #F1F5F9',
+            paddingRight: 24,
             textAlign: 'center',
-            background: 'linear-gradient(135deg, #ffffff 0%, #fffbf5 100%)',
           }}
         >
-          <div style={{ fontSize: '0.82rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>
             ĐÁNH GIÁ TRUNG BÌNH
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 10 }}>
-            <span style={{ fontSize: '3rem', fontWeight: 900, color: '#ea580c', lineHeight: 1 }}>
-              {stats.avg.toFixed(1)}
-            </span>
-            <span style={{ fontSize: '1.2rem', color: '#94a3b8', fontWeight: 600 }}>/ 5</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
-            {[1, 2, 3, 4, 5].map((star) => (
+          </span>
+          <span style={{ fontSize: '3.5rem', fontWeight: 900, color: '#EA580C', lineHeight: 1.1, margin: '8px 0' }}>
+            {stats.avg.toFixed(1)}
+          </span>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+            {[1, 2, 3, 4, 5].map((s) => (
               <Star
-                key={star}
-                size={22}
-                fill={star <= Math.round(stats.avg) ? '#f59e0b' : '#e2e8f0'}
-                color={star <= Math.round(stats.avg) ? '#f59e0b' : '#cbd5e1'}
+                key={s}
+                size={20}
+                fill={s <= Math.round(stats.avg) ? '#F59E0B' : '#E2E8F0'}
+                color={s <= Math.round(stats.avg) ? '#F59E0B' : '#CBD5E1'}
               />
             ))}
           </div>
-
-          <p style={{ fontSize: '0.84rem', color: '#64748b', marginTop: 12 }}>
-            Dựa trên <strong>{stats.total}</strong> lượt đánh giá của khách hàng
-          </p>
+          <span style={{ fontSize: '0.84rem', color: '#64748B' }}>
+            Dựa trên <strong>{stats.total}</strong> lượt đánh giá của thực khách
+          </span>
         </div>
 
-        {/* Breakdown từng mức sao */}
-        <div className="panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
-          <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
-            Phân bổ mức sao
+        {/* Thanh phân phối sao bên phải */}
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1E293B', marginBottom: 2 }}>
+            Phân bổ mức sao thực tế
           </div>
-
           {[5, 4, 3, 2, 1].map((star) => {
-            const count = stats.counts[star as 1 | 2 | 3 | 4 | 5] || 0;
-            const percent = stats.total > 0 ? (count / stats.total) * 100 : 0;
-
+            const count = stats.counts[star] || 0;
+            const pct = stats.total > 0 ? (count / stats.total) * 100 : 0;
             return (
-              <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.82rem' }}>
-                <div style={{ width: 44, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, color: '#475569' }}>
-                  <span>{star}</span>
-                  <Star size={13} fill="#f59e0b" color="#f59e0b" />
-                </div>
-
-                <div style={{ flex: 1, height: 8, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}>
+              <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.84rem' }}>
+                <span style={{ fontWeight: 700, color: '#475569', width: 30 }}>{star}★</span>
+                <div
+                  style={{
+                    flex: 1,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: '#F1F5F9',
+                    overflow: 'hidden',
+                  }}
+                >
                   <div
                     style={{
-                      width: `${percent}%`,
                       height: '100%',
-                      background: star >= 4 ? '#10b981' : star === 3 ? '#f59e0b' : '#ef4444',
-                      borderRadius: 999,
-                      transition: 'width 0.4s ease',
+                      width: `${pct}%`,
+                      backgroundColor: '#F59E0B',
+                      borderRadius: 4,
+                      transition: 'width 0.3s ease',
                     }}
                   />
                 </div>
-
-                <div style={{ width: 60, textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
-                  {count} ({Math.round(percent)}%)
-                </div>
+                <span style={{ color: '#64748B', width: 70, textAlign: 'right', fontWeight: 600 }}>
+                  {count} lượt ({Math.round(pct)}%)
+                </span>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Filter bar by star rating */}
-      <div className="panel" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#475569', marginRight: 4 }}>
-            Lọc theo sao:
-          </span>
-
-          <button
-            onClick={() => setStarFilter('ALL')}
-            className={`filter-pill ${starFilter === 'ALL' ? 'active' : ''}`}
-          >
-            Tất cả sao ({stats.total})
-          </button>
-
-          {[5, 4, 3, 2, 1].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStarFilter(s)}
-              className={`filter-pill ${starFilter === s ? 'active' : ''}`}
-            >
-              {s} sao ({stats.counts[s as 1 | 2 | 3 | 4 | 5] || 0})
-            </button>
-          ))}
+      {/* 2. Dải lọc sao & nút làm mới */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          borderRadius: 14,
+          padding: '12px 18px',
+        }}
+      >
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {(['all', 5, 4, 3, 2, 1] as const).map((star) => {
+            const isSelected = starFilter === star;
+            return (
+              <button
+                key={String(star)}
+                onClick={() => setStarFilter(star)}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: 999,
+                  backgroundColor: isSelected ? '#EA580C' : '#F8FAFC',
+                  border: isSelected ? '1px solid #EA580C' : '1px solid #CBD5E1',
+                  color: isSelected ? '#FFFFFF' : '#475569',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {star === 'all' ? 'Tất cả' : `${star}★`}
+              </button>
+            );
+          })}
         </div>
 
         <button
-          onClick={fetchReviews}
-          className="btn btn-secondary"
-          style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
+          onClick={loadReviews}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: '#F8FAFC',
+            border: '1px solid #CBD5E1',
+            borderRadius: 8,
+            padding: '7px 12px',
+            color: '#475569',
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+          title="Tải lại đánh giá"
         >
-          <RotateCw size={13} className={loading ? 'spinning' : ''} />
-          <span>Tải lại</span>
+          <RotateCw size={14} className={loading ? 'spinning' : ''} />
+          <span>Làm mới</span>
         </button>
       </div>
 
-      {error && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fee2e2', color: '#dc2626', borderRadius: 12, padding: '12px 16px' }}>
-          {error}
+      {/* 3. Lưới các đánh giá từ thực khách */}
+      {loading ? (
+        <div className="owner-web-panel" style={{ textAlign: 'center', padding: '60px 0' }}>
+          <div style={{ color: '#EA580C', fontWeight: 700 }}>Đang tải danh sách đánh giá...</div>
         </div>
-      )}
+      ) : filteredReviews.length === 0 ? (
+        <div className="owner-web-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <MessageSquare size={48} color="#CBD5E1" style={{ margin: '0 auto 12px auto' }} />
+          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#334155' }}>
+            Chưa có đánh giá nào
+          </div>
+          <p style={{ fontSize: '0.85rem', color: '#94A3B8', marginTop: 4 }}>
+            {starFilter === 'all'
+              ? 'Khi thực khách hoàn tất đơn hàng và chấm sao, nhận xét sẽ hiển thị tại đây.'
+              : `Không có đánh giá ${starFilter} sao nào.`}
+          </p>
+        </div>
+      ) : (
+        <div className="owner-web-reviews-list">
+          {filteredReviews.map((item) => {
+            const userName = item.user?.full_name || 'Khách hàng';
+            const star = Number(item.rating || 5);
+            const dateStr = item.created_at
+              ? new Date(item.created_at).toLocaleDateString('vi-VN', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })
+              : 'Gần đây';
 
-      {/* Reviews List */}
-      <div className="panel" style={{ padding: 20 }}>
-        {loading && reviews.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '50px 0', color: '#64748b' }}>
-            <div className="spinner" style={{ margin: '0 auto 12px auto' }} />
-            <p>Đang tải danh sách đánh giá...</p>
-          </div>
-        ) : reviews.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
-            <MessageSquare size={42} style={{ margin: '0 auto 12px auto', opacity: 0.5 }} />
-            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#475569' }}>
-              Chưa có đánh giá nào
-            </div>
-            <p style={{ fontSize: '0.84rem', marginTop: 4 }}>
-              Khách hàng sau khi nhận món và hoàn tất đơn hàng sẽ để lại nhận xét tại đây.
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {reviews.map((rev) => (
+            return (
               <div
-                key={rev.id}
+                key={item.id}
                 style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  backgroundColor: '#FFFFFF',
                   borderRadius: 14,
-                  padding: '16px 18px',
+                  padding: 18,
+                  border: '1px solid #E2E8F0',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 10,
+                  boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
                 }}
               >
-                {/* Header: User + Stars + Date */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 10,
-                        background: '#e2e8f0',
-                        color: '#475569',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.95rem',
-                      }}
-                    >
-                      {rev.user?.full_name ? rev.user.full_name.charAt(0).toUpperCase() : 'K'}
-                    </div>
+                {/* Header người đánh giá */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: '#FFEDD5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.05rem',
+                      fontWeight: 800,
+                      color: '#EA580C',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
 
-                    <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
-                        {rev.user?.full_name || 'Khách hàng ẩn danh'}
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                        {formatTimeAgo(rev.created_at)} ({formatDate(rev.created_at)})
-                      </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#0F172A' }}>
+                      {userName}
+                    </div>
+                    <div style={{ display: 'flex', gap: 3, marginTop: 2 }}>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          size={14}
+                          fill={s <= star ? '#F59E0B' : '#E2E8F0'}
+                          color={s <= star ? '#F59E0B' : '#CBD5E1'}
+                        />
+                      ))}
                     </div>
                   </div>
 
-                  {/* Stars */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        size={16}
-                        fill={s <= rev.rating ? '#f59e0b' : '#e2e8f0'}
-                        color={s <= rev.rating ? '#f59e0b' : '#cbd5e1'}
-                      />
-                    ))}
-                    <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#b45309', marginLeft: 4 }}>
-                      {rev.rating} sao
-                    </span>
+                  <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>{dateStr}</span>
+                </div>
+
+                {/* Nội dung nhận xét */}
+                {item.comment ? (
+                  <div style={{ fontSize: '0.88rem', color: '#334155', lineHeight: 1.5 }}>
+                    "{item.comment}"
                   </div>
-                </div>
+                ) : (
+                  <div style={{ fontSize: '0.82rem', fontStyle: 'italic', color: '#94A3B8' }}>
+                    (Khách hàng chỉ chấm sao không để lại lời bình)
+                  </div>
+                )}
 
-                {/* Comment Content */}
-                <div style={{ fontSize: '0.88rem', color: '#334155', lineHeight: 1.5 }}>
-                  {rev.comment ? (
-                    <span>"{rev.comment}"</span>
-                  ) : (
-                    <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                      (Khách hàng không để lại nhận xét chữ)
-                    </span>
-                  )}
-                </div>
-
-                {/* Order tag if available */}
-                {rev.order_id && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
-                    <ShoppingBag size={12} />
-                    <span>Đơn hàng liên quan: #{rev.order_id}</span>
+                {/* Tag mã đơn hàng liên quan */}
+                {item.order_id && (
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      alignSelf: 'flex-start',
+                      backgroundColor: '#F8FAFC',
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: '1px solid #F1F5F9',
+                      fontSize: '0.75rem',
+                      color: '#64748B',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Receipt size={13} color="#64748B" />
+                    <span>Mã đơn hàng: #{item.order_id}</span>
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

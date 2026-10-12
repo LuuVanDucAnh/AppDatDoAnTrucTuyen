@@ -9,6 +9,8 @@ import {
   Clock,
   BarChart2,
   TrendingUp,
+  ShoppingBag,
+  Sparkles,
 } from 'lucide-react';
 import type {
   AdminRestaurant,
@@ -18,6 +20,7 @@ import type {
 } from '../../services/types';
 import { ownerApi } from '../../services/api';
 import './owner-mobile-ui.css';
+import './owner-web.css';
 
 interface OwnerDashboardViewProps {
   restaurant: AdminRestaurant | null;
@@ -64,7 +67,7 @@ export function OwnerDashboardView({
       setRevenue(r);
       setTopFoods(t);
     } catch (err: any) {
-      console.error('Lỗi tải số liệu:', err);
+      console.error('Lỗi tải số liệu dashboard:', err);
     } finally {
       setLoading(false);
     }
@@ -104,195 +107,360 @@ export function OwnerDashboardView({
   );
 
   return (
-    <div className="owner-m-content">
+    <div className="owner-web-view">
       {/* 1. Hero Banner đơn mới cần xử lý (nếu có đơn PENDING) */}
       {(dashboard?.pending_orders ?? 0) > 0 && (
-        <div className="owner-m-hero" onClick={onGoToOrders}>
-          <div className="owner-m-hero-icon">
-            <Bell size={18} color="#FFFFFF" />
+        <div className="owner-web-hero" onClick={onGoToOrders}>
+          <div className="owner-web-hero-left">
+            <div className="owner-web-hero-icon">
+              <Bell size={24} color="#FFFFFF" />
+            </div>
+            <div>
+              <div className="owner-web-hero-title">
+                Có {dashboard!.pending_orders} đơn hàng mới cần xác nhận!
+              </div>
+              <div className="owner-web-hero-sub">
+                Khách hàng đang chờ nhà hàng xác nhận và nấu món. Hãy xử lý ngay để đảm bảo thời gian giao.
+              </div>
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <div className="owner-m-hero-title">{dashboard!.pending_orders} đơn mới</div>
-            <div className="owner-m-hero-sub">Đang chờ bạn xác nhận</div>
-          </div>
-          <div className="owner-m-hero-btn">
-            <span className="owner-m-hero-btn-text">Xử lý ngay</span>
-            <ArrowRight size={13} color="#C2410C" />
-          </div>
+          <button className="owner-web-hero-btn" onClick={onGoToOrders}>
+            <span>Xử lý ngay</span>
+            <ArrowRight size={16} />
+          </button>
         </div>
       )}
 
-      {/* 2. Hiệu suất vận hành */}
-      <div className="owner-m-section-title">Hiệu suất vận hành</div>
-
-      <div className="owner-m-stat-grid">
-        <div className="owner-m-stat-card wide">
-          <span className="owner-m-stat-label">Doanh thu hôm nay</span>
-          <span className="owner-m-stat-value">{money(dashboard?.today?.revenue ?? 0)}đ</span>
-          <span className="owner-m-stat-hint">Tính trên đơn đã giao (DELIVERED)</span>
-        </div>
-
-        <div className="owner-m-stat-card">
-          <span className="owner-m-stat-label">Đơn hôm nay</span>
-          <span className="owner-m-stat-value">{dashboard?.today?.orders ?? 0}</span>
-          <span className="owner-m-stat-hint">
-            {dashboard?.active_orders ?? 0} đơn đang xử lý
+      {/* 2. Hiệu suất vận hành (4 thẻ thống kê trực quan) */}
+      <div className="owner-web-stats-grid">
+        <div className="owner-web-stat-card">
+          <span className="owner-web-stat-label">Doanh thu hôm nay</span>
+          <span className="owner-web-stat-value highlight">
+            {money(dashboard?.today?.revenue ?? 0)}đ
+          </span>
+          <span className="owner-web-stat-hint">
+            Tính trên các đơn hoàn tất (DELIVERED)
           </span>
         </div>
 
-        <div className="owner-m-stat-card">
-          <span className="owner-m-stat-label">Doanh thu tháng</span>
-          <span className="owner-m-stat-value">{money(dashboard?.month?.revenue ?? 0)}đ</span>
-          <span className="owner-m-stat-hint">
-            {dashboard?.month?.orders ?? 0} đơn trong tháng
+        <div className="owner-web-stat-card">
+          <span className="owner-web-stat-label">Đơn hàng hôm nay</span>
+          <span className="owner-web-stat-value">
+            {dashboard?.today?.orders ?? 0}
+          </span>
+          <span className="owner-web-stat-hint">
+            <strong>{dashboard?.active_orders ?? 0}</strong> đơn đang nấu / đang giao
           </span>
         </div>
 
-        <div className="owner-m-stat-card">
-          <span className="owner-m-stat-label">Đánh giá</span>
-          <div className="owner-m-rating-row">
-            <span className="owner-m-stat-value">
+        <div className="owner-web-stat-card">
+          <span className="owner-web-stat-label">Doanh thu tháng này</span>
+          <span className="owner-web-stat-value">
+            {money(dashboard?.month?.revenue ?? 0)}đ
+          </span>
+          <span className="owner-web-stat-hint">
+            Tổng {dashboard?.month?.orders ?? 0} đơn giao thành công
+          </span>
+        </div>
+
+        <div className="owner-web-stat-card">
+          <span className="owner-web-stat-label">Đánh giá của khách</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="owner-web-stat-value">
               {Number(dashboard?.average_rating ?? 5).toFixed(1)}
             </span>
-            <Star size={15} fill="#D97706" color="#D97706" />
+            <div style={{ display: 'flex', gap: 2 }}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star
+                  key={s}
+                  size={16}
+                  fill={s <= Math.round(Number(dashboard?.average_rating ?? 5)) ? '#F59E0B' : '#E2E8F0'}
+                  color={s <= Math.round(Number(dashboard?.average_rating ?? 5)) ? '#F59E0B' : '#CBD5E1'}
+                />
+              ))}
+            </div>
           </div>
-          <span className="owner-m-stat-hint">
-            {dashboard?.total_reviews ?? 0} lượt đánh giá
+          <span className="owner-web-stat-hint">
+            {dashboard?.total_reviews ?? 0} lượt phản hồi & chấm sao
           </span>
         </div>
       </div>
 
-      {/* 3. Biểu đồ doanh thu 7 ngày */}
-      <div className="owner-m-card">
-        <div className="owner-m-card-header">
-          <div>
-            <div className="owner-m-card-title">Biểu đồ doanh thu</div>
-            <div className="owner-m-card-sub">7 ngày gần nhất</div>
-          </div>
-          <div className="owner-m-total-pill">
-            <span className="owner-m-total-pill-text">{money(chartTotal)}đ</span>
-          </div>
-        </div>
-
-        {chartTotal === 0 ? (
-          <div style={{ textAlign: 'center', padding: '30px 0', color: '#94a3b8' }}>
-            <BarChart2 size={34} color="#D1D5DB" style={{ margin: '0 auto 8px auto' }} />
-            <div style={{ fontSize: '12.5px', color: '#6B7280' }}>
-              Chưa có đơn giao thành công nào trong 7 ngày qua.
+      {/* 3. Bố cục 2 cột: Biểu đồ doanh thu 7 ngày (trái) + Top món bán chạy (phải) */}
+      <div className="owner-web-grid-2col">
+        {/* Biểu đồ doanh thu 7 ngày */}
+        <div className="owner-web-panel">
+          <div className="owner-web-panel-header">
+            <div>
+              <div className="owner-web-panel-title">Biểu đồ doanh thu</div>
+              <div className="owner-web-panel-sub">Số liệu thực tế 7 ngày gần nhất</div>
+            </div>
+            <div
+              style={{
+                backgroundColor: '#FFF7ED',
+                border: '1px solid #FFEDD5',
+                padding: '6px 14px',
+                borderRadius: 10,
+                color: '#C2410C',
+                fontWeight: 800,
+                fontSize: '0.9rem',
+              }}
+            >
+              Tổng 7 ngày: {money(chartTotal)}đ
             </div>
           </div>
-        ) : (
-          <div className="owner-m-chart">
-            {chart.map((c) => {
-              const h = Math.max(6, Math.round((c.revenue / chartMax) * 110));
-              const isTop = c.revenue === chartMax && c.revenue > 0;
-              return (
-                <div key={c.period} className="owner-m-bar-col">
-                  <span className="owner-m-bar-val">
-                    {c.revenue > 0 ? shortMoney(c.revenue) : ''}
-                  </span>
-                  <div
-                    className={`owner-m-bar ${isTop ? 'top-day' : ''}`}
-                    style={{ height: `${h}px` }}
-                  />
-                  <span className="owner-m-bar-lbl">{c.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
 
-      {/* 4. Top món bán chạy */}
-      <div className="owner-m-card">
-        <div className="owner-m-card-header">
-          <div>
-            <div className="owner-m-card-title">Top món bán chạy</div>
-            <div className="owner-m-card-sub">Theo số lượng đã bán (đơn đã giao)</div>
-          </div>
-          <button className="owner-m-link-text" onClick={onGoToMenu}>
-            Xem thực đơn
-          </button>
-        </div>
-
-        {topFoods.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8' }}>
-            <UtensilsCrossed size={34} color="#D1D5DB" style={{ margin: '0 auto 8px auto' }} />
-            <div style={{ fontSize: '12.5px', color: '#6B7280' }}>
-              Chưa có dữ liệu bán hàng.
-            </div>
-          </div>
-        ) : (
-          topFoods.map((f, idx) => (
-            <div key={f.food_id} className="owner-m-top-row">
-              <div className={`owner-m-rank-badge ${idx === 0 ? 'first' : ''}`}>
-                <span className={`owner-m-rank-text ${idx === 0 ? 'first' : ''}`}>
-                  {idx + 1}
-                </span>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="owner-m-top-name">{f.food_name}</div>
-                <div className="owner-m-top-meta">
-                  Đã bán {f.total_sold} phần · {money(f.total_revenue)}đ
-                </div>
-                <div className="owner-m-progress-track">
-                  <div
-                    className="owner-m-progress-fill"
-                    style={{ width: `${Math.round((f.total_sold / topMax) * 100)}%` }}
-                  />
-                </div>
+          {chartTotal === 0 ? (
+            <div style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>
+              <BarChart2 size={44} color="#D1D5DB" style={{ margin: '0 auto 10px auto' }} />
+              <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                Chưa có đơn hàng nào hoàn tất trong 7 ngày qua.
               </div>
             </div>
-          ))
-        )}
+          ) : (
+            <div className="owner-web-chart">
+              {chart.map((c) => {
+                const h = Math.max(8, Math.round((c.revenue / chartMax) * 140));
+                const isTop = c.revenue === chartMax && c.revenue > 0;
+                return (
+                  <div key={c.period} className="owner-web-bar-col">
+                    <span className="owner-web-bar-val">
+                      {c.revenue > 0 ? shortMoney(c.revenue) : ''}
+                    </span>
+                    <div
+                      className={`owner-web-bar ${isTop ? 'top-day' : ''}`}
+                      style={{ height: `${h}px` }}
+                      title={`${c.label}: ${money(c.revenue)}đ (${c.orders} đơn)`}
+                    />
+                    <span className="owner-web-bar-lbl">{c.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Top 5 món bán chạy */}
+        <div className="owner-web-panel">
+          <div className="owner-web-panel-header">
+            <div>
+              <div className="owner-web-panel-title">Top món bán chạy</div>
+              <div className="owner-web-panel-sub">Các món được thực khách ưa chuộng nhất</div>
+            </div>
+            <button
+              onClick={onGoToMenu}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#EA580C',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+              }}
+            >
+              Xem thực đơn ›
+            </button>
+          </div>
+
+          {topFoods.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>
+              <UtensilsCrossed size={40} color="#D1D5DB" style={{ margin: '0 auto 10px auto' }} />
+              <div style={{ fontSize: '0.88rem', color: '#64748b' }}>
+                Chưa có dữ liệu món bán chạy.
+              </div>
+            </div>
+          ) : (
+            <div className="owner-web-top-list">
+              {topFoods.map((f, i) => {
+                const pct = topMax > 0 ? Math.round((f.total_sold / topMax) * 100) : 0;
+                return (
+                  <div key={f.food_id || i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div
+                        className={`owner-web-rank-badge ${
+                          i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''
+                        }`}
+                      >
+                        #{i + 1}
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                            color: '#1E293B',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {f.food_name}
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: '#94A3B8' }}>
+                          {f.total_sold} phần đã bán • {money(f.total_revenue)}đ
+                        </div>
+                      </div>
+
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#EA580C' }}>
+                        {f.total_sold} đĩa
+                      </span>
+                    </div>
+
+                    {/* Progress track */}
+                    <div
+                      style={{
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: '#F1F5F9',
+                        overflow: 'hidden',
+                        marginLeft: 38,
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${pct}%`,
+                          backgroundColor: i === 0 ? '#EA580C' : '#FB923C',
+                          borderRadius: 3,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 5. Quản lý & Thiết lập nhanh */}
-      <div className="owner-m-card">
-        <div className="owner-m-card-title">Quản lý & Thiết lập nhanh</div>
-
-        {/* Xử lý đơn hàng */}
-        <button className="owner-m-quick-row" onClick={onGoToOrders}>
-          <div className="owner-m-quick-icon" style={{ backgroundColor: '#FFEDD5' }}>
-            <Receipt size={16} color="#C2410C" />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div className="owner-m-quick-title">Xử lý đơn hàng</div>
-            <div className="owner-m-quick-sub">
-              {dashboard?.pending_orders ?? 0} chờ xác nhận · {dashboard?.active_orders ?? 0} đang làm
+      {/* 4. Lối tắt quản lý nhanh */}
+      <div className="owner-web-panel">
+        <div className="owner-web-panel-title">Lối tắt quản lý vận hành</div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: 14,
+          }}
+        >
+          <div
+            onClick={onGoToOrders}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '14px 18px',
+              borderRadius: 12,
+              backgroundColor: '#FFF7ED',
+              border: '1px solid #FED7AA',
+              cursor: 'pointer',
+              transition: 'transform 0.15s',
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                backgroundColor: '#FFEDD5',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#EA580C',
+              }}
+            >
+              <Receipt size={20} />
             </div>
-          </div>
-          <ChevronRight size={17} color="#CBD5E1" />
-        </button>
-
-        {/* Quản lý thực đơn */}
-        <button className="owner-m-quick-row" onClick={onGoToMenu}>
-          <div className="owner-m-quick-icon" style={{ backgroundColor: '#DCFCE7' }}>
-            <UtensilsCrossed size={16} color="#15803D" />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div className="owner-m-quick-title">Quản lý thực đơn</div>
-            <div className="owner-m-quick-sub">
-              {dashboard?.total_foods ?? 0} món trong quán
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, color: '#C2410C', fontSize: '0.92rem' }}>
+                Xử lý đơn hàng
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#9A3412', marginTop: 2 }}>
+                Xem danh sách đơn mới & bàn giao shipper
+              </div>
             </div>
+            <ChevronRight size={18} color="#EA580C" />
           </div>
-          <ChevronRight size={17} color="#CBD5E1" />
-        </button>
 
-        {/* Thông tin & giờ hoạt động */}
-        <button className="owner-m-quick-row" onClick={onGoToSettings}>
-          <div className="owner-m-quick-icon" style={{ backgroundColor: '#E0E7FF' }}>
-            <Clock size={16} color="#4338CA" />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div className="owner-m-quick-title">Thông tin & giờ hoạt động</div>
-            <div className="owner-m-quick-sub">
-              {restaurant?.opening_time?.slice(0, 5) ?? '08:00'} -{' '}
-              {restaurant?.closing_time?.slice(0, 5) ?? '22:00'}
+          <div
+            onClick={onGoToMenu}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '14px 18px',
+              borderRadius: 12,
+              backgroundColor: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              cursor: 'pointer',
+              transition: 'transform 0.15s',
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                backgroundColor: '#DBEAFE',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#2563EB',
+              }}
+            >
+              <UtensilsCrossed size={20} />
             </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, color: '#1D4ED8', fontSize: '0.92rem' }}>
+                Cập nhật thực đơn
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#1E40AF', marginTop: 2 }}>
+                Bật/tắt món còn hay hết hàng, thêm món mới
+              </div>
+            </div>
+            <ChevronRight size={18} color="#2563EB" />
           </div>
-          <ChevronRight size={17} color="#CBD5E1" />
-        </button>
+
+          <div
+            onClick={onGoToSettings}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '14px 18px',
+              borderRadius: 12,
+              backgroundColor: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              cursor: 'pointer',
+              transition: 'transform 0.15s',
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                backgroundColor: '#DCFCE7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#15803D',
+              }}
+            >
+              <Clock size={20} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, color: '#15803D', fontSize: '0.92rem' }}>
+                Hồ sơ & Giờ mở cửa
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#166534', marginTop: 2 }}>
+                Cài đặt hotline, địa chỉ và giờ tiếp nhận đơn
+              </div>
+            </div>
+            <ChevronRight size={18} color="#15803D" />
+          </div>
+        </div>
       </div>
     </div>
   );

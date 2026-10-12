@@ -1,0 +1,436 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   GIAO DIỆN NHÀ HÀNG TRÊN WEB (FOOD MERCHANT DESKTOP WEB PORTAL)
+   Dựa trên 100% tính năng, màu sắc, bố cục thẻ và trải nghiệm từ mobile
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Container chung của các màn hình */
+.owner-web-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1. DASHBOARD STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Hero Banner đơn mới */
+.owner-web-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ea580c 0%, #9a3412 100%);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(234, 88, 12, 0.25);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.owner-web-hero:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(234, 88, 12, 0.35);
+}
+
+.owner-web-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.owner-web-hero-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 23px;
+  background-color: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.owner-web-hero-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.owner-web-hero-sub {
+  font-size: 0.85rem;
+  color: #ffedd5;
+  margin-top: 2px;
+}
+
+.owner-web-hero-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffffff;
+  color: #c2410c;
+  font-weight: 800;
+  font-size: 0.88rem;
+  padding: 10px 18px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: none;
+  cursor: pointer;
+}
+
+/* Stats 4-Column Grid */
+.owner-web-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.owner-web-stat-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.owner-web-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.owner-web-stat-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.owner-web-stat-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.owner-web-stat-value.highlight {
+  color: #ea580c;
+}
+
+.owner-web-stat-hint {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Two-column layout: Chart (65%) + Top Dishes (35%) */
+.owner-web-grid-2col {
+  display: grid;
+  grid-template-columns: 1.6fr 1.1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .owner-web-grid-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card Panel */
+.owner-web-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.owner-web-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.owner-web-panel-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.owner-web-panel-sub {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Chart */
+.owner-web-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 200px;
+  padding-top: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 10px;
+  gap: 12px;
+}
+
+.owner-web-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.owner-web-bar-val {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.owner-web-bar {
+  width: 50%;
+  max-width: 44px;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  background-color: #fdba74;
+  transition: height 0.3s ease, background-color 0.2s;
+}
+
+.owner-web-bar:hover {
+  background-color: #ea580c;
+}
+
+.owner-web-bar.top-day {
+  background-color: #ea580c;
+}
+
+.owner-web-bar-lbl {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Top Dishes List */
+.owner-web-top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.owner-web-top-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.owner-web-rank-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.owner-web-rank-badge.first {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.owner-web-rank-badge.second {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+.owner-web-rank-badge.third {
+  background-color: #ffedd5;
+  color: #c2410c;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   2. ORDERS STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Top operational controls */
+.owner-web-orders-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+
+.owner-web-status-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.owner-web-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.owner-web-tab-btn:hover {
+  border-color: #ea580c;
+  color: #ea580c;
+}
+
+.owner-web-tab-btn.active {
+  background: #ea580c;
+  border-color: #ea580c;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+}
+
+.owner-web-tab-badge {
+  background: rgba(0, 0, 0, 0.12);
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+}
+
+.owner-web-tab-btn.active .owner-web-tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Orders Grid Layout */
+.owner-web-orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .owner-web-orders-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.owner-web-order-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: all 0.15s;
+}
+
+.owner-web-order-card:hover {
+  border-color: #fdba74;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   3. MENU STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+.owner-web-menu-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 20px;
+}
+
+.owner-web-food-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.owner-web-food-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  gap: 14px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: all 0.15s;
+}
+
+.owner-web-food-card:hover {
+  border-color: #fdba74;
+}
+
+.owner-web-food-card.off {
+  background-color: #f8fafc;
+  opacity: 0.75;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   4. REVIEWS STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+.owner-web-reviews-summary {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .owner-web-reviews-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.owner-web-reviews-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 16px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   5. SETTINGS STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+.owner-web-settings-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 960px) {
+  .owner-web-settings-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -12,7 +12,7 @@ import { PaymentsView } from './views/PaymentsView';
 import { ReviewsView } from './views/ReviewsView';
 import { SettingsView } from './views/SettingsView';
 
-// Owner Views
+// Owner Desktop Web Views (Dựa trên 100% tính năng & thiết kế mobile)
 import { OwnerDashboardView } from './views/owner/OwnerDashboardView';
 import { OwnerOrdersView } from './views/owner/OwnerOrdersView';
 import { OwnerMenuView } from './views/owner/OwnerMenuView';
@@ -50,8 +50,9 @@ export function App() {
     return getStoredUser();
   });
 
-  // Chế độ cổng: 'admin' (Sàn) hay 'owner' (Kênh quán ăn)
-  const isOwnerRole = currentUser?.role === 'RESTAURANT_OWNER' || (currentUser?.role as any) === 'OWNER';
+  // Chế độ cổng: 'admin' (Sàn) hay 'owner' (Kênh quán ăn trên Web)
+  const isOwnerRole =
+    currentUser?.role === 'RESTAURANT_OWNER' || (currentUser?.role as any) === 'OWNER';
   const [portalMode, setPortalMode] = useState<'admin' | 'owner'>(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const p = urlParams.get('portal');
@@ -72,7 +73,11 @@ export function App() {
   const getAdminTabFromLocation = (): NavTab => {
     try {
       const hash = window.location.hash.replace('#', '') as NavTab;
-      if (['dashboard', 'users', 'restaurants', 'orders', 'payments', 'reviews', 'settings'].includes(hash)) {
+      if (
+        ['dashboard', 'users', 'restaurants', 'orders', 'payments', 'reviews', 'settings'].includes(
+          hash
+        )
+      ) {
         return hash;
       }
     } catch {
@@ -227,19 +232,21 @@ export function App() {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // GIAO DIỆN 1: KÊNH ĐỐI TÁC NHÀ HÀNG (MERCHANT / OWNER PORTAL)
+  // GIAO DIỆN 1: KÊNH ĐỐI TÁC NHÀ HÀNG (MERCHANT / OWNER WEB PORTAL)
+  // Giao diện web hoàn chỉnh trên nền tảng tính năng và thiết kế mobile
   // ═══════════════════════════════════════════════════════════════════════════
   if (portalMode === 'owner') {
     const tabTitles: Record<OwnerNavTab, string> = {
       overview: 'Tổng quan kinh doanh',
-      orders: 'Quản lý đơn hàng',
+      orders: 'Quản lý đơn hàng trực tuyến',
       menu: 'Thực đơn & Món ăn',
-      reviews: 'Đánh giá khách hàng',
-      settings: 'Cài đặt quán ăn',
+      reviews: 'Đánh giá từ khách hàng',
+      settings: 'Hồ sơ & Giờ mở cửa quán',
     };
 
     return (
       <div className="app-container">
+        {/* Sidebar chuẩn Web dành cho Chủ Quán */}
         <OwnerSidebar
           activeTab={activeOwnerTab}
           onSelectTab={handleSelectOwnerTab}
@@ -256,7 +263,9 @@ export function App() {
           onSwitchToAdminPortal={currentUser.role === 'ADMIN' ? () => setPortalMode('admin') : undefined}
         />
 
+        {/* Nội dung chính bên phải */}
         <div className="main-wrapper">
+          {/* Header chuẩn Web cho Chủ Quán (Breadcrumb, Nút chuyển nhanh MỞ CỬA / ĐÓNG CỬA, Profile) */}
           <OwnerHeader
             currentUser={currentUser}
             selectedRestaurant={selectedRestaurant}
@@ -265,7 +274,12 @@ export function App() {
             activeTabTitle={tabTitles[activeOwnerTab] || 'Quản lý quán'}
           />
 
-          <main key={`owner-${activeOwnerTab}-${selectedRestaurant?.id}-${refreshTrigger}`}>
+          {/* Vùng nội dung các màn hình */}
+          <main
+            className="content-container"
+            key={`owner-${activeOwnerTab}-${selectedRestaurant?.id}-${refreshTrigger}`}
+            style={{ padding: '24px 32px' }}
+          >
             {activeOwnerTab === 'overview' && (
               <OwnerDashboardView
                 restaurant={selectedRestaurant}
@@ -274,28 +288,38 @@ export function App() {
                 onGoToSettings={() => handleSelectOwnerTab('settings')}
               />
             )}
+
             {activeOwnerTab === 'orders' && (
               <OwnerOrdersView
                 restaurant={selectedRestaurant}
                 onRefreshStats={refreshPendingCount}
               />
             )}
+
             {activeOwnerTab === 'menu' && (
               <OwnerMenuView
                 restaurant={selectedRestaurant}
                 onRefreshStats={handleRefresh}
               />
             )}
+
             {activeOwnerTab === 'reviews' && (
               <OwnerReviewsView restaurant={selectedRestaurant} />
             )}
+
             {activeOwnerTab === 'settings' && (
               <OwnerSettingsView
                 restaurant={selectedRestaurant}
+                restaurants={myRestaurants}
                 currentUser={currentUser}
+                onSelectRestaurant={handleSelectRestaurant}
                 onRestaurantUpdated={handleRestaurantUpdated}
                 onRestaurantCreated={handleRestaurantCreated}
+                onViewAllReviews={() => handleSelectOwnerTab('reviews')}
                 onLogout={handleLogout}
+                onSwitchToAdminPortal={
+                  currentUser.role === 'ADMIN' ? () => setPortalMode('admin') : undefined
+                }
               />
             )}
           </main>
@@ -319,8 +343,12 @@ export function App() {
       <div className="main-wrapper">
         <Header
           currentUser={currentUser}
-          onCreateNotification={() => alert('Chức năng: Gửi thông báo đẩy đến toàn bộ khách hàng và quán ăn.')}
-          onQuickSettlement={() => alert('Chức năng: Kết toán nhanh doanh thu các nhà hàng đối tác hôm nay.')}
+          onCreateNotification={() =>
+            alert('Chức năng: Gửi thông báo đẩy đến toàn bộ khách hàng và quán ăn.')
+          }
+          onQuickSettlement={() =>
+            alert('Chức năng: Kết toán nhanh doanh thu các nhà hàng đối tác hôm nay.')
+          }
           onSwitchToOwnerPortal={() => setPortalMode('owner')}
         />
 

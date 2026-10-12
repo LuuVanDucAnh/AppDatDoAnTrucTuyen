@@ -254,7 +254,7 @@ export interface OwnerDashboardData {
 export interface OwnerFood {
   id: number;
   restaurant_id: number;
-  category_id: number;
+  category_id?: number;
   name: string;
   description?: string;
   price: number;
@@ -290,6 +290,10 @@ export interface OwnerOrder {
   note?: string;
   created_at: string;
   updated_at?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  delivery_address?: string;
+  payment_method?: string;
   user?: {
     id: number;
     full_name: string;
@@ -314,9 +318,13 @@ export interface OwnerOrder {
     id: number;
     food_id: number;
     food_name?: string;
+    name?: string;
     quantity: number;
     price: number | string;
     subtotal?: number | string;
+    food_image?: string;
+    image?: string;
+    notes?: string;
     food?: {
       id: number;
       name: string;
