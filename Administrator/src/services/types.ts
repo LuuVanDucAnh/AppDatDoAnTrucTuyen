@@ -233,3 +233,126 @@ export interface RevenueStatPoint {
   order_count: number;
   revenue: number;
 }
+
+// ── Restaurant Owner Types ────────────────────────────────────────────────────
+export interface OwnerDashboardData {
+  today: {
+    orders: number;
+    revenue: number;
+  };
+  month: {
+    orders: number;
+    revenue: number;
+  };
+  pending_orders: number;
+  active_orders: number;
+  average_rating: number;
+  total_reviews: number;
+  total_foods: number;
+}
+
+export interface OwnerFood {
+  id: number;
+  restaurant_id: number;
+  category_id: number;
+  name: string;
+  description?: string;
+  price: number;
+  image?: string;
+  status: 'AVAILABLE' | 'UNAVAILABLE';
+  created_at?: string;
+  updated_at?: string;
+  category?: {
+    id: number;
+    name: string;
+  };
+}
+
+export interface OwnerCategory {
+  id: number;
+  restaurant_id?: number;
+  name: string;
+  description?: string;
+  foods?: OwnerFood[];
+  food_count?: number;
+  created_at?: string;
+}
+
+export interface OwnerOrder {
+  id: number;
+  user_id: number;
+  restaurant_id: number;
+  total_amount: number | string;
+  food_total?: number | string;
+  delivery_fee?: number | string;
+  discount?: number | string;
+  status: OrderStatus;
+  note?: string;
+  created_at: string;
+  updated_at?: string;
+  user?: {
+    id: number;
+    full_name: string;
+    phone_number: string;
+    email?: string;
+  };
+  address?: {
+    receiver_name: string;
+    phone_number: string;
+    address_detail: string;
+    ward?: string;
+    district?: string;
+    city?: string;
+  };
+  payment?: {
+    id: number;
+    payment_method: PaymentMethod;
+    status: PaymentStatus;
+    amount: number | string;
+  };
+  items?: Array<{
+    id: number;
+    food_id: number;
+    food_name?: string;
+    quantity: number;
+    price: number | string;
+    subtotal?: number | string;
+    food?: {
+      id: number;
+      name: string;
+      image?: string;
+    };
+  }>;
+}
+
+export interface OwnerTopFood {
+  food_id: number;
+  food_name: string;
+  total_sold: number;
+  total_revenue: number;
+  order_count: number;
+}
+
+export interface OwnerReview {
+  id: number;
+  order_id: number;
+  user_id: number;
+  restaurant_id: number;
+  rating: number;
+  comment?: string;
+  created_at: string;
+  user?: {
+    id: number;
+    full_name: string;
+    phone_number?: string;
+    avatar?: string;
+  };
+}
+
+export interface OwnerRevenuePoint {
+  period: string;
+  order_count: number;
+  revenue: number;
+  food_total?: number;
+}
+

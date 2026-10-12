@@ -6,6 +6,13 @@ import type {
   AdminUser,
   ApiEnvelope,
   OrderStatus,
+  OwnerCategory,
+  OwnerDashboardData,
+  OwnerFood,
+  OwnerOrder,
+  OwnerRevenuePoint,
+  OwnerReview,
+  OwnerTopFood,
   PlatformDashboard,
   RestaurantStatus,
   RevenueStatPoint,
@@ -96,7 +103,7 @@ async function request<T>(
 
 // ── Auth API ──────────────────────────────────────────────────────────────────
 export const authApi = {
-  async login(email: string, password: string):Promise<{ user: AdminUser; accessToken: string; refreshToken?: string }> {
+  async login(email: string, password: string): Promise<{ user: AdminUser; accessToken: string; refreshToken?: string }> {
     const res = await request<{ user: AdminUser; accessToken: string; refreshToken?: string }>(
       '/users/login',
       {
@@ -104,8 +111,9 @@ export const authApi = {
         body: JSON.stringify({ email, password }),
       }
     );
-    if (res.data.user.role !== 'ADMIN') {
-      throw new ApiError('Tài khoản này không có quyền Quản trị viên (ADMIN)', 403);
+    const role = res.data.user.role;
+    if (role !== 'ADMIN' && role !== 'RESTAURANT_OWNER' && (role as any) !== 'OWNER') {
+      throw new ApiError('Tài khoản này không có quyền truy cập Cổng Quản Trị / Kênh Nhà Hàng. Vui lòng đăng nhập bằng tài khoản Quản trị viên hoặc Đối tác quán ăn.', 403);
     }
     saveSession(res.data.accessToken, res.data.refreshToken, res.data.user);
     return res.data;
@@ -383,3 +391,291 @@ export const reviewsApi = {
     return res.message;
   },
 };
+
+// ── Upload API ────────────────────────────────────────────────────────────────
+export const uploadApi = {
+  async uploadFood(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await request<{ url: string; filename: string }>('/upload/food', {
+      method: 'POST',
+      body: formData,
+    });
+    return res.data.url;
+  },
+
+  async uploadRestaurant(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await request<{ url: string; filename: string }>('/upload/restaurant', {
+      method: 'POST',
+      body: formData,
+    });
+    return res.data.url;
+  },
+};
+
+// ── Owner (Merchant Partner) API ──────────────────────────────────────────────
+export const ownerApi = {
+  /** GET /owner/my-restaurants */
+  async getMyRestaurants(): Promise<AdminRestaurant[]> {
+    const res = await request<AdminRestaurant[]>('/owner/my-restaurants');
+    return res.data;
+  },
+
+  /** POST /restaurants — Tạo quán ăn mới */
+  async createRestaurant(input: {
+    name: string;
+    address: string;
+    phone_number?: string;
+    description?: string;
+    image?: string;
+    opening_time?: string;
+    closing_time?: string;
+  }): Promise<AdminRestaurant> {
+    const res = await request<AdminRestaurant>('/restaurants', {
+      method: 'POST',
+      body: JSON.stringify({ ...input, status: 'OPEN' }),
+    });
+    return res.data;
+  },
+
+  /** PUT /owner/restaurants/:id — Cập nhật thông tin quán */
+  async updateRestaurantInfo(
+    restaurantId: number,
+    input: {
+      name?: string;
+      description?: string;
+      address?: string;
+      phone_number?: string;
+      image?: string;
+      opening_time?: string;
+      closing_time?: string;
+    }
+  ): Promise<AdminRestaurant> {
+    const res = await request<AdminRestaurant>(`/owner/restaurants/${restaurantId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+    return res.data;
+  },
+
+  /** PATCH /owner/restaurants/:id/toggle-status — OPEN ↔ CLOSED */
+  async toggleRestaurantStatus(restaurantId: number): Promise<AdminRestaurant> {
+    const res = await request<AdminRestaurant>(`/owner/restaurants/${restaurantId}/toggle-status`, {
+      method: 'PATCH',
+    });
+    return res.data;
+  },
+
+  /** PATCH /owner/restaurants/:id/status — OPEN | CLOSED | BUSY */
+  async setRestaurantStatus(
+    restaurantId: number,
+    status: RestaurantStatus
+  ): Promise<AdminRestaurant> {
+    const res = await request<AdminRestaurant>(`/owner/restaurants/${restaurantId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+    return res.data;
+  },
+
+  /** GET /owner/restaurants/:id/dashboard */
+  async getDashboard(restaurantId: number): Promise<OwnerDashboardData> {
+    const res = await request<OwnerDashboardData>(`/owner/restaurants/${restaurantId}/dashboard`);
+    return res.data;
+  },
+
+  /** GET /owner/restaurants/:id/stats/revenue */
+  async getRevenueStats(
+    restaurantId: number,
+    params?: { from?: string; to?: string; groupBy?: 'day' | 'month' | 'year' }
+  ): Promise<OwnerRevenuePoint[]> {
+    const q = new URLSearchParams();
+    if (params?.from) q.append('from', params.from);
+    if (params?.to) q.append('to', params.to);
+    if (params?.groupBy) q.append('groupBy', params.groupBy);
+    const res = await request<OwnerRevenuePoint[]>(
+      `/owner/restaurants/${restaurantId}/stats/revenue?${q.toString()}`
+    );
+    return res.data;
+  },
+
+  /** GET /owner/restaurants/:id/stats/top-foods */
+  async getTopFoods(restaurantId: number, limit = 8): Promise<OwnerTopFood[]> {
+    const res = await request<OwnerTopFood[]>(
+      `/owner/restaurants/${restaurantId}/stats/top-foods?limit=${limit}`
+    );
+    return res.data;
+  },
+
+  /** GET /owner/restaurants/:id/orders */
+  async getOrders(
+    restaurantId: number,
+    params?: { status?: OrderStatus | ''; page?: number; limit?: number }
+  ): Promise<ApiEnvelope<OwnerOrder[]>> {
+    const q = new URLSearchParams();
+    if (params?.status) q.append('status', params.status);
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.limit) q.append('limit', String(params.limit));
+    return request<OwnerOrder[]>(`/owner/restaurants/${restaurantId}/orders?${q.toString()}`);
+  },
+
+  /** GET /owner/restaurants/:id/orders/:orderId */
+  async getOrderDetail(restaurantId: number, orderId: number): Promise<OwnerOrder> {
+    const res = await request<OwnerOrder>(
+      `/owner/restaurants/${restaurantId}/orders/${orderId}`
+    );
+    return res.data;
+  },
+
+  /** PATCH /owner/restaurants/:id/orders/:orderId/status */
+  async updateOrderStatus(
+    restaurantId: number,
+    orderId: number,
+    status: OrderStatus
+  ): Promise<OwnerOrder> {
+    const res = await request<OwnerOrder>(
+      `/owner/restaurants/${restaurantId}/orders/${orderId}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }
+    );
+    return res.data;
+  },
+
+  /** GET /owner/restaurants/:id/foods */
+  async getFoods(
+    restaurantId: number,
+    params?: { status?: string; category_id?: number; page?: number; limit?: number }
+  ): Promise<ApiEnvelope<OwnerFood[]>> {
+    const q = new URLSearchParams();
+    if (params?.status) q.append('status', params.status);
+    if (params?.category_id) q.append('category_id', String(params.category_id));
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.limit) q.append('limit', String(params.limit || 200));
+    return request<OwnerFood[]>(`/owner/restaurants/${restaurantId}/foods?${q.toString()}`);
+  },
+
+  /** POST /owner/restaurants/:id/foods */
+  async createFood(
+    restaurantId: number,
+    input: {
+      category_id: number;
+      name: string;
+      price: number;
+      description?: string;
+      image?: string;
+      status?: 'AVAILABLE' | 'UNAVAILABLE';
+    }
+  ): Promise<OwnerFood> {
+    const res = await request<OwnerFood>(`/owner/restaurants/${restaurantId}/foods`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    return res.data;
+  },
+
+  /** PUT /owner/restaurants/:id/foods/:foodId */
+  async updateFood(
+    restaurantId: number,
+    foodId: number,
+    input: {
+      category_id?: number;
+      name?: string;
+      price?: number;
+      description?: string;
+      image?: string;
+      status?: 'AVAILABLE' | 'UNAVAILABLE';
+    }
+  ): Promise<OwnerFood> {
+    const res = await request<OwnerFood>(
+      `/owner/restaurants/${restaurantId}/foods/${foodId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }
+    );
+    return res.data;
+  },
+
+  /** DELETE /owner/restaurants/:id/foods/:foodId */
+  async deleteFood(restaurantId: number, foodId: number): Promise<void> {
+    await request<null>(`/owner/restaurants/${restaurantId}/foods/${foodId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /** PATCH /owner/restaurants/:id/foods/:foodId/toggle-status */
+  async toggleFoodStatus(restaurantId: number, foodId: number): Promise<OwnerFood> {
+    const res = await request<OwnerFood>(
+      `/owner/restaurants/${restaurantId}/foods/${foodId}/toggle-status`,
+      { method: 'PATCH' }
+    );
+    return res.data;
+  },
+
+  /** GET /owner/restaurants/:id/categories */
+  async getCategories(restaurantId: number): Promise<OwnerCategory[]> {
+    const res = await request<OwnerCategory[]>(
+      `/owner/restaurants/${restaurantId}/categories`
+    );
+    return res.data;
+  },
+
+  /** POST /owner/restaurants/:id/categories */
+  async createCategory(
+    restaurantId: number,
+    input: { name: string; description?: string }
+  ): Promise<OwnerCategory> {
+    const res = await request<OwnerCategory>(
+      `/owner/restaurants/${restaurantId}/categories`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
+    return res.data;
+  },
+
+  /** PUT /owner/restaurants/:id/categories/:categoryId */
+  async updateCategory(
+    restaurantId: number,
+    categoryId: number,
+    input: { name?: string; description?: string }
+  ): Promise<OwnerCategory> {
+    const res = await request<OwnerCategory>(
+      `/owner/restaurants/${restaurantId}/categories/${categoryId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }
+    );
+    return res.data;
+  },
+
+  /** DELETE /owner/restaurants/:id/categories/:categoryId */
+  async deleteCategory(restaurantId: number, categoryId: number): Promise<void> {
+    await request<null>(
+      `/owner/restaurants/${restaurantId}/categories/${categoryId}`,
+      { method: 'DELETE' }
+    );
+  },
+
+  /** GET /owner/restaurants/:id/reviews */
+  async getReviews(
+    restaurantId: number,
+    params?: { rating?: number; page?: number; limit?: number }
+  ): Promise<{ total: number; page: number; limit: number; data: OwnerReview[] }> {
+    const q = new URLSearchParams();
+    if (params?.rating) q.append('rating', String(params.rating));
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.limit) q.append('limit', String(params.limit || 50));
+    const res = await request<{ total: number; page: number; limit: number; data: OwnerReview[] }>(
+      `/owner/restaurants/${restaurantId}/reviews?${q.toString()}`
+    );
+    return res.data;
+  },
+};
+
